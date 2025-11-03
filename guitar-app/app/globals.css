@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --custom-orange: rgb(216, 86, 0);
+    --custom-orange-hover: rgb(186, 74, 0);
+  }
+}
+
+.bg-custom-orange {
+  background-color: var(--custom-orange);
+}
+
+.hover\:bg-custom-orange-hover:hover {
+  background-color: var(--custom-orange-hover);
+}
+
+.text-custom-orange {
+  color: var(--custom-orange);
+}
+
+.border-custom-orange {
+  border-color: var(--custom-orange);
+}
+
+.hover\:border-custom-orange:hover {
+  border-color: var(--custom-orange);
+}
+
+.shadow-custom-orange\/40 {
+  --tw-shadow-color: rgba(216, 86, 0, 0.4);
+  --tw-shadow: var(--tw-shadow-colored);
+}
