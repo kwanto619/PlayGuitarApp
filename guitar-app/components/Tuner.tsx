@@ -33,19 +33,12 @@ export default function Tuner() {
 
     if (rms < minVolume) return -1;
 
-    let r1 = 0, r2 = SIZE - 1;
+    let r1 = 0;
     const threshold = 0.2;
 
     for (let i = 0; i < SIZE / 2; i++) {
       if (Math.abs(buffer[i]) < threshold) {
         r1 = i;
-        break;
-      }
-    }
-
-    for (let i = r1 + 1; i < SIZE / 2; i++) {
-      if (Math.abs(buffer[i]) > threshold) {
-        r2 = i;
         break;
       }
     }
@@ -144,7 +137,8 @@ export default function Tuner() {
     if (!isListening) {
       try {
         if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          audioContextRef.current = new AudioContextClass();
         }
 
         if (audioContextRef.current.state === 'suspended') {
@@ -182,8 +176,10 @@ export default function Tuner() {
     if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     if (microphoneRef.current) {
       microphoneRef.current.disconnect();
-      const stream = (microphoneRef.current as any).mediaStream as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
+      const mediaStreamSource = microphoneRef.current as MediaStreamAudioSourceNode & { mediaStream: MediaStream };
+      if (mediaStreamSource.mediaStream) {
+        mediaStreamSource.mediaStream.getTracks().forEach((track) => track.stop());
+      }
     }
   };
 

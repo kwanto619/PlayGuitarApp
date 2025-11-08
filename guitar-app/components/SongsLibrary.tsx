@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, updateSong } from '@/lib/storage';
 
 export default function SongsLibrary() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -93,7 +93,6 @@ export default function SongsLibrary() {
       language: editedSong.language,
     };
 
-    const { updateSong } = require('@/lib/storage');
     const updatedSongs = updateSong(selectedSong.id, updatedSong);
     setSongs(updatedSongs);
     setSelectedSong(updatedSong);

@@ -16,7 +16,8 @@ export default function ChordsLibrary() {
   });
 
   const playChord = (chord: Chord) => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AudioContextClass();
     const openStringFrequencies = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
     const now = audioContext.currentTime;
     const duration = 2.0;
