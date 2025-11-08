@@ -1,4 +1,4 @@
 [build]
   base = "guitar-app"
   command = "npm run build"
-  publish = "guitar-app/.next"
+  publish = ".next"
