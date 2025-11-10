@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
 
 export default function SongsLibrary() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -10,6 +10,7 @@ export default function SongsLibrary() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newSong, setNewSong] = useState({
     title: '',
     artist: '',
@@ -104,15 +105,54 @@ export default function SongsLibrary() {
     setEditedSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
   };
 
+  const handleExportSongs = () => {
+    exportSongs();
+  };
+
+  const handleImportSongs = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        const importedSongs = await importSongs(file);
+        setSongs(importedSongs);
+        alert(`Successfully imported ${importedSongs.length} songs!`);
+      } catch (error) {
+        alert('Failed to import songs. Please make sure the file is valid.');
+      }
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div>
-      <div className="mb-8 flex justify-center">
+      <div className="mb-8 flex justify-center gap-4 flex-wrap">
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-custom-orange hover:bg-custom-orange-hover text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
         >
           {showAddForm ? '✕ Cancel' : '+ Add New Song'}
         </button>
+
+        <button
+          onClick={handleExportSongs}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
+        >
+          ⬇ Export Songs
+        </button>
+
+        <label className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer">
+          ⬆ Import Songs
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportSongs}
+            className="hidden"
+          />
+        </label>
       </div>
 
       {showAddForm && (
