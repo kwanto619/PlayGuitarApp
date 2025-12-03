@@ -27,9 +27,11 @@ export default function Auth() {
             data: {
               username: username,
             },
+            emailRedirectTo: undefined, // Don't send confirmation email
           },
         });
         if (error) {
+          console.error('Signup error:', error);
           if (error.message.includes('already registered')) {
             throw new Error('Username already taken. Please choose another one.');
           }
@@ -44,6 +46,7 @@ export default function Auth() {
         await handleSignIn(email, password);
       }
     } catch (error) {
+      console.error('Auth error:', error);
       setMessage((error as Error).message);
     } finally {
       setLoading(false);
