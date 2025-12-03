@@ -29,17 +29,16 @@ export default function SongsLibrary() {
   });
 
   useEffect(() => {
-    setSongs(loadSongs());
+    loadSongs().then(setSongs);
   }, []);
 
-  const handleAddSong = () => {
+  const handleAddSong = async () => {
     if (!newSong.title || !newSong.artist) {
       alert('Title and artist are required!');
       return;
     }
 
-    const song: Song = {
-      id: Date.now().toString(),
+    const song = {
       title: newSong.title,
       artist: newSong.artist,
       chords: newSong.chords.split(',').map((c) => c.trim()).filter(Boolean),
@@ -48,18 +47,26 @@ export default function SongsLibrary() {
       language: newSong.language,
     };
 
-    const updatedSongs = addSong(song);
-    setSongs(updatedSongs);
-    setNewSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
-    setShowAddForm(false);
+    try {
+      const updatedSongs = await addSong(song);
+      setSongs(updatedSongs);
+      setNewSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
+      setShowAddForm(false);
+    } catch (error) {
+      alert('Failed to add song. Please try again.');
+    }
   };
 
-  const handleDeleteSong = (id: string) => {
+  const handleDeleteSong = async (id: string) => {
     if (confirm('Are you sure you want to delete this song?')) {
-      const updatedSongs = deleteSong(id);
-      setSongs(updatedSongs);
-      if (selectedSong?.id === id) {
-        setSelectedSong(null);
+      try {
+        const updatedSongs = await deleteSong(id);
+        setSongs(updatedSongs);
+        if (selectedSong?.id === id) {
+          setSelectedSong(null);
+        }
+      } catch (error) {
+        alert('Failed to delete song. Please try again.');
       }
     }
   };
@@ -78,7 +85,7 @@ export default function SongsLibrary() {
     setEditMode(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedSong || !editedSong.title || !editedSong.artist) {
       alert('Title and artist are required!');
       return;
@@ -94,10 +101,14 @@ export default function SongsLibrary() {
       language: editedSong.language,
     };
 
-    const updatedSongs = updateSong(selectedSong.id, updatedSong);
-    setSongs(updatedSongs);
-    setSelectedSong(updatedSong);
-    setEditMode(false);
+    try {
+      const updatedSongs = await updateSong(selectedSong.id, updatedSong);
+      setSongs(updatedSongs);
+      setSelectedSong(updatedSong);
+      setEditMode(false);
+    } catch (error) {
+      alert('Failed to update song. Please try again.');
+    }
   };
 
   const handleCancelEdit = () => {
@@ -105,8 +116,12 @@ export default function SongsLibrary() {
     setEditedSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
   };
 
-  const handleExportSongs = () => {
-    exportSongs();
+  const handleExportSongs = async () => {
+    try {
+      await exportSongs();
+    } catch (error) {
+      alert('Failed to export songs. Please try again.');
+    }
   };
 
   const handleImportSongs = async (event: React.ChangeEvent<HTMLInputElement>) => {

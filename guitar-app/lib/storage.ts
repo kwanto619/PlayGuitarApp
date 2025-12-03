@@ -1,59 +1,98 @@
 import { Song } from '@/types';
-import { initialSongs } from '@/data/initialSongs';
+import { supabase } from './supabase';
 
-const STORAGE_KEY = 'guitar-app-songs';
+export const loadSongs = async (): Promise<Song[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
 
-export const saveSongs = (songs: Song[]): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+  if (!user) {
+    return [];
   }
-};
 
-export const loadSongs = (): Song[] => {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    } else {
-      // First time - save and return initial songs
-      saveSongs(initialSongs);
-      return initialSongs;
-    }
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error loading songs:', error);
+    return [];
   }
-  return [];
+
+  return data.map(song => ({
+    id: song.id,
+    title: song.title,
+    artist: song.artist,
+    chords: song.chords,
+    lyrics: song.lyrics || undefined,
+    notes: song.notes || undefined,
+    language: song.language as 'greek' | 'english',
+  }));
 };
 
-export const addSong = (song: Song): Song[] => {
-  const songs = loadSongs();
-  songs.push(song);
-  saveSongs(songs);
-  return songs;
-};
+export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
 
-export const deleteSong = (id: string): Song[] => {
-  const songs = loadSongs().filter(song => song.id !== id);
-  saveSongs(songs);
-  return songs;
-};
-
-export const updateSong = (id: string, updatedSong: Partial<Song>): Song[] => {
-  const songs = loadSongs().map(song =>
-    song.id === id ? { ...song, ...updatedSong } : song
-  );
-  saveSongs(songs);
-  return songs;
-};
-
-export const resetSongs = (): Song[] => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(STORAGE_KEY);
+  if (!user) {
+    throw new Error('You must be logged in to add songs');
   }
-  saveSongs(initialSongs);
-  return initialSongs;
+
+  const { error } = await supabase.from('songs').insert({
+    user_id: user.id,
+    title: song.title,
+    artist: song.artist,
+    chords: song.chords,
+    lyrics: song.lyrics || null,
+    notes: song.notes || null,
+    language: song.language,
+  });
+
+  if (error) {
+    console.error('Error adding song:', error);
+    throw new Error('Failed to add song');
+  }
+
+  return loadSongs();
 };
 
-export const exportSongs = (): void => {
-  const songs = loadSongs();
+export const deleteSong = async (id: string): Promise<Song[]> => {
+  const { error } = await supabase
+    .from('songs')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting song:', error);
+    throw new Error('Failed to delete song');
+  }
+
+  return loadSongs();
+};
+
+export const updateSong = async (id: string, updatedSong: Partial<Song>): Promise<Song[]> => {
+  const { error } = await supabase
+    .from('songs')
+    .update({
+      title: updatedSong.title,
+      artist: updatedSong.artist,
+      chords: updatedSong.chords,
+      lyrics: updatedSong.lyrics || null,
+      notes: updatedSong.notes || null,
+      language: updatedSong.language,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating song:', error);
+    throw new Error('Failed to update song');
+  }
+
+  return loadSongs();
+};
+
+export const exportSongs = async (): Promise<void> => {
+  const songs = await loadSongs();
   const dataStr = JSON.stringify(songs, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(dataBlob);
@@ -64,14 +103,41 @@ export const exportSongs = (): void => {
   URL.revokeObjectURL(url);
 };
 
-export const importSongs = (file: File): Promise<Song[]> => {
+export const importSongs = async (file: File): Promise<Song[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('You must be logged in to import songs');
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const songs = JSON.parse(e.target?.result as string) as Song[];
-        saveSongs(songs);
-        resolve(songs);
+
+        // Delete all existing songs first
+        await supabase.from('songs').delete().eq('user_id', user.id);
+
+        // Insert all imported songs
+        const songsToInsert = songs.map(song => ({
+          user_id: user.id,
+          title: song.title,
+          artist: song.artist,
+          chords: song.chords,
+          lyrics: song.lyrics || null,
+          notes: song.notes || null,
+          language: song.language,
+        }));
+
+        const { error } = await supabase.from('songs').insert(songsToInsert);
+
+        if (error) {
+          reject(new Error('Failed to import songs'));
+        } else {
+          const updatedSongs = await loadSongs();
+          resolve(updatedSongs);
+        }
       } catch (error) {
         reject(new Error('Invalid file format'));
       }
