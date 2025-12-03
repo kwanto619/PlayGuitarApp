@@ -2,16 +2,9 @@ import { Song } from '@/types';
 import { supabase } from './supabase';
 
 export const loadSongs = async (): Promise<Song[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return [];
-  }
-
   const { data, error } = await supabase
     .from('songs')
     .select('*')
-    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -31,14 +24,7 @@ export const loadSongs = async (): Promise<Song[]> => {
 };
 
 export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error('You must be logged in to add songs');
-  }
-
   const { error } = await supabase.from('songs').insert({
-    user_id: user.id,
     title: song.title,
     artist: song.artist,
     chords: song.chords,
@@ -104,12 +90,6 @@ export const exportSongs = async (): Promise<void> => {
 };
 
 export const importSongs = async (file: File): Promise<Song[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error('You must be logged in to import songs');
-  }
-
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -117,11 +97,10 @@ export const importSongs = async (file: File): Promise<Song[]> => {
         const songs = JSON.parse(e.target?.result as string) as Song[];
 
         // Delete all existing songs first
-        await supabase.from('songs').delete().eq('user_id', user.id);
+        await supabase.from('songs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
         // Insert all imported songs
         const songsToInsert = songs.map(song => ({
-          user_id: user.id,
           title: song.title,
           artist: song.artist,
           chords: song.chords,
