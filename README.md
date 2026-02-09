@@ -1,4 +1,10 @@
-# 🎸 Guitar Companion App
+<div align="center">
+
+<img src="./banner.svg" alt="Guitar Companion Banner" width="100%"/>
+
+</div>
+
+<br/>
 
 A comprehensive guitar practice companion built with Next.js, React, and TypeScript.
 
@@ -28,7 +34,6 @@ A comprehensive guitar practice companion built with Next.js, React, and TypeScr
 ## Getting Started
 
 ### Installation
-
 ```bash
 # Navigate to the project
 cd guitar-app
@@ -43,14 +48,12 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Build for Production
-
 ```bash
 npm run build
 npm start
 ```
 
 ## Project Structure
-
 ```
 guitar-app/
 ├── app/
@@ -72,7 +75,6 @@ guitar-app/
 ```
 
 ## Technologies Used
-
 - **Next.js 15** - React framework
 - **TypeScript** - Type safety
 - **Tailwind CSS** - Styling
@@ -100,5 +102,4 @@ guitar-app/
 5. Delete songs you no longer need
 
 ## License
-
 MIT
