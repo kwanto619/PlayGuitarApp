@@ -12,6 +12,96 @@ interface ParsedSong {
   lyrics: string;
   lyricsSnippet: string;
   lyricsBlocked: boolean;
+  siteBlocked: boolean;
+}
+
+// ── Client-side HTML parser (used when server fetch is blocked) ────────────
+function stripHtml(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, '')
+    .replace(/&shy;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
+}
+
+function extractDivById(html: string, id: string): string | null {
+  const startRe = new RegExp(`<div[^>]+id=["']${id}["'][^>]*>`);
+  const startM = startRe.exec(html);
+  if (!startM) return null;
+  const contentStart = startM.index + startM[0].length;
+  let pos = contentStart;
+  let depth = 1;
+  while (depth > 0) {
+    const nextOpen  = html.indexOf('<div',  pos);
+    const nextClose = html.indexOf('</div', pos);
+    if (nextClose === -1) return null;
+    if (nextOpen !== -1 && nextOpen < nextClose) { depth++; pos = nextOpen + 4; }
+    else { depth--; if (depth === 0) return html.slice(contentStart, nextClose); pos = nextClose + 6; }
+  }
+  return null;
+}
+
+function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
+  let title = '';
+  let artist = '';
+  let language: 'greek' | 'english' = 'greek';
+
+  const titleM = html.match(/<h1[^>]*class="ti"[^>]*>([\s\S]*?)<\/h1>/);
+  if (titleM) title = stripHtml(titleM[1]);
+
+  const artistM = html.match(/<h2[^>]*class="ar"[^>]*>([\s\S]*?)<\/h2>/);
+  if (artistM) artist = stripHtml(artistM[1]);
+
+  // JSON-LD fallback
+  const ldRe = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  let ldM: RegExpExecArray | null;
+  while ((ldM = ldRe.exec(html)) !== null) {
+    try {
+      const items = JSON.parse(ldM[1]);
+      const arr: Record<string, unknown>[] = Array.isArray(items) ? items : [items];
+      for (const item of arr) {
+        if (item['@type'] === 'MusicComposition') {
+          if (!title && item.name) title = stripHtml(String(item.name));
+          if (!artist) {
+            const rec = item.recordedAs as Record<string, unknown> | undefined;
+            const by = (rec?.byArtist as Record<string, unknown> | undefined);
+            if (by?.name) artist = stripHtml(String(by.name));
+          }
+          if (String(item.inLanguage ?? '').startsWith('en')) language = 'english';
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // Chords
+  const chordSet = new Set<string>();
+  const chordRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chordRe.exec(html)) !== null) {
+    const c = cm[1].trim().replace(/\s+/g, '');
+    if (c) chordSet.add(c);
+  }
+
+  // Lyrics from #text div
+  let lyrics = '';
+  const textContent = extractDivById(html, 'text');
+  if (textContent) {
+    lyrics = textContent
+      .replace(/<a[^>]*class="clickPlay"[^>]*>([^<]+)<\/a>/g, '[$1]')
+      .replace(/<\/?(span|a|em|strong|b|i)[^>]*>/g, '')
+      .replace(/<\/p>\s*<p[^>]*>/g, '\n\n').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '\n\n')
+      .replace(/<\/div>\s*<div[^>]*>/g, '\n\n').replace(/<\/?div[^>]*>/g, '\n')
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+      .replace(/&shy;/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')
+      .split('\n').map((l) => l.trimEnd()).join('\n')
+      .replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  return { title, artist, chords: [...chordSet], language, lyrics, lyricsSnippet: '' };
 }
 
 const inputStyle: React.CSSProperties = {
@@ -97,12 +187,13 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
 }
 
 export default function KitharaImport({ onImported }: { onImported: (song: Song) => void }) {
-  const [open,    setOpen]    = useState(false);
-  const [step,    setStep]    = useState<'url' | 'preview'>('url');
-  const [url,     setUrl]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
-  const [saving,  setSaving]  = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [step,      setStep]      = useState<'url' | 'paste-html' | 'preview'>('url');
+  const [url,       setUrl]       = useState('');
+  const [pastedHtml, setPastedHtml] = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+  const [saving,    setSaving]    = useState(false);
 
   const [form, setForm] = useState({
     title: '', artist: '', chords: '', lyrics: '', notes: '',
@@ -114,6 +205,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
     setOpen(false);
     setStep('url');
     setUrl('');
+    setPastedHtml('');
     setError('');
     setLoading(false);
     setSaving(false);
@@ -133,6 +225,11 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
       });
       const data: ParsedSong & { error?: string } = await res.json();
       if (!res.ok || data.error) { setError(data.error ?? 'Failed to parse the page.'); return; }
+
+      if (data.siteBlocked) {
+        setStep('paste-html');
+        return;
+      }
 
       setForm({
         title:    data.title,
@@ -248,16 +345,68 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
               <div>
                 <div style={{ fontSize: '0.58rem', letterSpacing: '0.45em', color: 'var(--gold-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)', marginBottom: '6px' }}>
-                  {step === 'url' ? 'Step 1 of 2' : 'Step 2 of 2'}
+                  {step === 'url' ? 'Step 1' : step === 'paste-html' ? 'Step 2 — Manual' : 'Step 2 of 2'}
                 </div>
                 <h3 style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.8rem', fontWeight: 500, letterSpacing: '0.1em', color: 'var(--gold)', margin: 0 }}>
-                  {step === 'url' ? 'Import from kithara.to' : 'Review & Save'}
+                  {step === 'url' ? 'Import from kithara.to' : step === 'paste-html' ? 'Paste Page Source' : 'Review & Save'}
                 </h3>
               </div>
               <button onClick={reset} style={{ padding: '6px 10px', background: 'transparent', border: '1px solid var(--gold-border)', color: 'var(--cream-muted)', cursor: 'pointer', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.1rem' }}>✕</button>
             </div>
 
             <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--gold-border-mid), transparent)', marginBottom: '28px' }} />
+
+            {/* ── Step 2b: Paste HTML (site blocked) ── */}
+            {step === 'paste-html' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ padding: '14px 16px', border: '1px solid rgba(200,152,32,0.35)', background: 'rgba(200,152,32,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
+                  <strong style={{ color: 'var(--gold)' }}>kithara.to blocks automated requests.</strong><br />
+                  To import, do the following:<br />
+                  1. Open the song page in a new tab<br />
+                  2. Press <strong>Ctrl+U</strong> (or right-click → View Page Source)<br />
+                  3. Press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> to copy all<br />
+                  4. Paste it in the box below and click Parse
+                </div>
+
+                <Field label="Paste page source here">
+                  <VTextarea
+                    placeholder="Paste the full HTML source of the kithara.to song page…"
+                    value={pastedHtml}
+                    onChange={(e) => setPastedHtml(e.target.value)}
+                    style={{ minHeight: '200px', fontFamily: 'var(--font-ibm-mono, monospace)', fontSize: '0.8rem' }}
+                  />
+                </Field>
+
+                {error && (
+                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem' }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => {
+                      if (!pastedHtml.trim()) { setError('Please paste the page source first.'); return; }
+                      try {
+                        const parsed = parseKitharaHtml(pastedHtml);
+                        if (!parsed.title && !parsed.artist) { setError('Could not parse the HTML. Make sure you copied the full page source.'); return; }
+                        setForm({ title: parsed.title, artist: parsed.artist, chords: parsed.chords.join(', '), lyrics: parsed.lyrics, notes: '', language: parsed.language });
+                        setError('');
+                        setStep('preview');
+                      } catch {
+                        setError('Failed to parse the pasted HTML.');
+                      }
+                    }}
+                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
+                  >
+                    Parse →
+                  </button>
+                  <button onClick={() => { setStep('url'); setError(''); }} style={{ padding: '13px 24px', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.9rem', letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border)', background: 'transparent', color: 'var(--cream-muted)' }}>
+                    ← Back
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ── Step 1: URL input ── */}
             {step === 'url' && (

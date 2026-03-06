@@ -79,20 +79,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(url, { headers });
     httpStatus = res.status;
 
-    if (res.status === 403 || res.status === 429) {
-      // Direct fetch blocked — try via allorigins proxy
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const proxyRes = await fetch(proxyUrl);
-      if (proxyRes.ok) {
-        const json = await proxyRes.json() as { contents: string; status: { http_code: number } };
-        html = json.contents ?? '';
-        httpStatus = json.status?.http_code ?? proxyRes.status;
-      } else {
-        html = await res.text(); // keep the 403 body as fallback
-      }
-    } else {
-      html = await res.text();
-    }
+    html = await res.text();
   } catch (e) {
     return Response.json({ error: 'Failed to fetch the URL: ' + (e as Error).message }, { status: 502 });
   }
@@ -180,6 +167,8 @@ export async function POST(req: NextRequest) {
     parseError = (e as Error).message;
   }
 
+  const siteBlocked = httpStatus === 403 || httpStatus === 429;
+
   return Response.json({
     title,
     artist,
@@ -188,6 +177,7 @@ export async function POST(req: NextRequest) {
     lyrics,
     lyricsSnippet,
     lyricsBlocked,
+    siteBlocked,
     _debug: {
       httpStatus,
       htmlLength: html.length,
