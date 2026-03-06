@@ -15,29 +15,25 @@ function stripHtml(s: string): string {
 
 /** Extract the full inner HTML of the first <div id="id"> accounting for nested divs */
 function extractDivById(html: string, id: string): string | null {
-  const startRe = new RegExp(`<div[^>]+id="${id}"[^>]*>`);
+  const startRe = new RegExp(`<div[^>]+id=["']${id}["'][^>]*>`);
   const startM = startRe.exec(html);
   if (!startM) return null;
 
   const contentStart = startM.index + startM[0].length;
+  let pos = contentStart;
   let depth = 1;
-  let i = contentStart;
 
-  while (i < html.length && depth > 0) {
-    if (html[i] === '<') {
-      if (html.slice(i, i + 5) === '</div') {
-        depth--;
-        if (depth === 0) return html.slice(contentStart, i);
-        // skip to '>'
-        i = html.indexOf('>', i) + 1;
-      } else if (html.slice(i, i + 4) === '<div') {
-        depth++;
-        i = html.indexOf('>', i) + 1;
-      } else {
-        i++;
-      }
+  while (depth > 0) {
+    const nextOpen  = html.indexOf('<div',  pos);
+    const nextClose = html.indexOf('</div', pos);
+    if (nextClose === -1) return null; // malformed HTML
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + 4;
     } else {
-      i++;
+      depth--;
+      if (depth === 0) return html.slice(contentStart, nextClose);
+      pos = nextClose + 6;
     }
   }
   return null;
@@ -87,93 +83,88 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Failed to fetch the URL: ' + (e as Error).message }, { status: 502 });
   }
 
-  // ── Title ──────────────────────────────────────────────────────────────────
   let title = '';
-  const titleM = html.match(/<h1[^>]*class="ti"[^>]*>([\s\S]*?)<\/h1>/);
-  if (titleM) title = stripHtml(titleM[1]);
-
-  // ── Artist ─────────────────────────────────────────────────────────────────
   let artist = '';
-  const artistM = html.match(/<h2[^>]*class="ar"[^>]*>([\s\S]*?)<\/h2>/);
-  if (artistM) artist = stripHtml(artistM[1]);
-
-  // ── JSON-LD enrichment ─────────────────────────────────────────────────────
   let lyricsSnippet = '';
   let language: 'greek' | 'english' = 'greek';
-
-  const jsonLdItems = parseJsonLd(html);
-  for (const item of jsonLdItems) {
-    if (item['@type'] === 'MusicComposition') {
-      if (!title && item.name) title = stripHtml(String(item.name));
-      if (!artist) {
-        const rec = item.recordedAs as Record<string, unknown> | undefined;
-        const byArtist = rec?.byArtist as Record<string, unknown> | undefined;
-        if (byArtist?.name) artist = stripHtml(String(byArtist.name));
-      }
-      const lyricsObj = item.lyrics as Record<string, unknown> | undefined;
-      if (lyricsObj?.text && !lyricsSnippet) {
-        lyricsSnippet = stripHtml(String(lyricsObj.text));
-      }
-      const lang = String(item.inLanguage ?? '');
-      if (lang.startsWith('en')) language = 'english';
-    }
-    // Also check WebPage type for inLanguage
-    if (item['@type'] === 'WebPage') {
-      const lang = String(item.inLanguage ?? '');
-      if (lang.startsWith('en')) language = 'english';
-    }
-  }
-
-  // ── Lyrics from #text div ──────────────────────────────────────────────────
   let lyrics = '';
-  const textDivContent = extractDivById(html, 'text');
-  if (textDivContent) {
-    lyrics = textDivContent
-      // Replace any clickPlay anchor (chords) with [ChordName]
-      .replace(/<a[^>]*class="clickPlay"[^>]*>([^<]+)<\/a>/g, '[$1]')
-      // Strip remaining span/a tags but keep their text content
-      .replace(/<\/?(span|a|em|strong|b|i)[^>]*>/g, '')
-      // Paragraph breaks → double newline
-      .replace(/<\/p>\s*<p[^>]*>/g, '\n\n')
-      .replace(/<p[^>]*>/g, '')
-      .replace(/<\/p>/g, '\n\n')
-      // div breaks
-      .replace(/<\/div>\s*<div[^>]*>/g, '\n\n')
-      .replace(/<\/?div[^>]*>/g, '\n')
-      // Line breaks
-      .replace(/<br\s*\/?>/gi, '\n')
-      // Strip any remaining HTML tags
-      .replace(/<[^>]+>/g, '')
-      // Decode HTML entities
-      .replace(/&shy;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      // Trim trailing spaces on each line
-      .split('\n').map((l) => l.trimEnd()).join('\n')
-      // Collapse 3+ blank lines to 2
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+  let chords: string[] = [];
+  let lyricsBlocked = false;
+  let parseError = '';
+
+  try {
+    // ── Title ────────────────────────────────────────────────────────────────
+    const titleM = html.match(/<h1[^>]*class="ti"[^>]*>([\s\S]*?)<\/h1>/);
+    if (titleM) title = stripHtml(titleM[1]);
+
+    // ── Artist ───────────────────────────────────────────────────────────────
+    const artistM = html.match(/<h2[^>]*class="ar"[^>]*>([\s\S]*?)<\/h2>/);
+    if (artistM) artist = stripHtml(artistM[1]);
+
+    // ── JSON-LD enrichment ───────────────────────────────────────────────────
+    const jsonLdItems = parseJsonLd(html);
+    for (const item of jsonLdItems) {
+      if (item['@type'] === 'MusicComposition') {
+        if (!title && item.name) title = stripHtml(String(item.name));
+        if (!artist) {
+          const rec = item.recordedAs as Record<string, unknown> | undefined;
+          const byArtist = rec?.byArtist as Record<string, unknown> | undefined;
+          if (byArtist?.name) artist = stripHtml(String(byArtist.name));
+        }
+        const lyricsObj = item.lyrics as Record<string, unknown> | undefined;
+        if (lyricsObj?.text && !lyricsSnippet) {
+          lyricsSnippet = stripHtml(String(lyricsObj.text));
+        }
+        const lang = String(item.inLanguage ?? '');
+        if (lang.startsWith('en')) language = 'english';
+      }
+      if (item['@type'] === 'WebPage') {
+        const lang = String(item.inLanguage ?? '');
+        if (lang.startsWith('en')) language = 'english';
+      }
+    }
+
+    // ── Lyrics from #text div ─────────────────────────────────────────────────
+    const textDivContent = extractDivById(html, 'text');
+    if (textDivContent) {
+      lyrics = textDivContent
+        .replace(/<a[^>]*class="clickPlay"[^>]*>([^<]+)<\/a>/g, '[$1]')
+        .replace(/<\/?(span|a|em|strong|b|i)[^>]*>/g, '')
+        .replace(/<\/p>\s*<p[^>]*>/g, '\n\n')
+        .replace(/<p[^>]*>/g, '')
+        .replace(/<\/p>/g, '\n\n')
+        .replace(/<\/div>\s*<div[^>]*>/g, '\n\n')
+        .replace(/<\/?div[^>]*>/g, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&shy;/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .split('\n').map((l) => l.trimEnd()).join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+    if (!lyrics) lyrics = lyricsSnippet;
+
+    // ── Chords ────────────────────────────────────────────────────────────────
+    const chordSet = new Set<string>();
+    const clickPlayRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
+    let cm: RegExpExecArray | null;
+    while ((cm = clickPlayRe.exec(html)) !== null) {
+      const chord = cm[1].trim().replace(/\s+/g, '');
+      if (chord) chordSet.add(chord);
+    }
+    chords = [...chordSet];
+
+    // ── Lyrics blocked detection ──────────────────────────────────────────────
+    lyricsBlocked = html.includes('checkVic') || html.includes('Προστασία υπερφόρτωσης');
+
+  } catch (e) {
+    parseError = (e as Error).message;
   }
-
-  // Fall back to JSON-LD snippet if #text div wasn't found
-  if (!lyrics) lyrics = lyricsSnippet;
-
-  // ── Chords ─────────────────────────────────────────────────────────────────
-  // Parse ALL clickPlay chord links from the full page
-  const chordSet = new Set<string>();
-  const clickPlayRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
-  let cm: RegExpExecArray | null;
-  while ((cm = clickPlayRe.exec(html)) !== null) {
-    const chord = cm[1].trim().replace(/\s+/g, '');
-    if (chord) chordSet.add(chord);
-  }
-  const chords = [...chordSet];
-
-  // ── Lyrics availability ────────────────────────────────────────────────────
-  const lyricsBlocked = html.includes('checkVic') || html.includes('Προστασία υπερφόρτωσης');
 
   return Response.json({
     title,
@@ -186,12 +177,13 @@ export async function POST(req: NextRequest) {
     _debug: {
       httpStatus,
       htmlLength: html.length,
-      htmlSnippet: html.slice(0, 800),
+      htmlSnippet: html.slice(0, 600),
       hasTitleTag: /<h1[^>]*class="ti"/.test(html),
       hasArtistTag: /<h2[^>]*class="ar"/.test(html),
       hasTextDiv: html.includes('id="text"'),
       hasClickPlay: html.includes('clickPlay'),
       hasJsonLd: html.includes('application/ld+json'),
+      parseError,
     },
   });
 }
