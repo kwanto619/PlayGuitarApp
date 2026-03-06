@@ -1,6 +1,6 @@
 export interface Chord {
   name: string;
-  type: 'major' | 'minor' | '7th' | 'sus';
+  type: 'major' | 'minor' | '7th' | 'maj7' | 'm7' | 'dim' | 'aug' | 'sus2' | 'sus4' | 'add9';
   strings: (number | 'x' | 'o')[];
   fingers: number[];
   baseFret: number;

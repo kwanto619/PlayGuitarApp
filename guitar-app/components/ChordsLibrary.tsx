@@ -5,8 +5,22 @@ import { chords } from '@/data/chords';
 import { Chord } from '@/types';
 import ChordDiagram from './ChordDiagram';
 
-const filterTypes = ['all', 'major', 'minor', '7th', 'sus'] as const;
+const filterTypes = ['all', 'major', 'minor', '7th', 'maj7', 'm7', 'dim', 'aug', 'sus2', 'sus4', 'add9'] as const;
 type FilterType = typeof filterTypes[number];
+
+const filterLabels: Record<FilterType, string> = {
+  all: 'All',
+  major: 'Major',
+  minor: 'Minor',
+  '7th': '7th',
+  maj7: 'Maj7',
+  m7: 'Min7',
+  dim: 'Dim',
+  aug: 'Aug',
+  sus2: 'Sus2',
+  sus4: 'Sus4',
+  add9: 'Add9',
+};
 
 export default function ChordsLibrary() {
   const [filter, setFilter] = useState<FilterType>('all');
@@ -84,38 +98,35 @@ export default function ChordsLibrary() {
 
       {/* Filter bar */}
       <div style={{
-        display: 'flex', justifyContent: 'center', gap: '2px',
+        display: 'flex', justifyContent: 'center', gap: '6px',
         marginBottom: '36px', flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
-          {filterTypes.map((type, i) => {
-            const isActive = filter === type;
-            return (
-              <button
-                key={type}
-                onClick={() => setFilter(type)}
-                style={{
-                  padding: '9px 22px',
-                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                  fontSize: '0.85rem',
-                  fontWeight: isActive ? 600 : 400,
-                  letterSpacing: '0.18em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  border: 'none',
-                  borderRight: i < filterTypes.length - 1 ? '1px solid var(--gold-border)' : 'none',
-                  transition: 'all 0.15s',
-                  background: isActive
-                    ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))'
-                    : 'transparent',
-                  color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
-                }}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </button>
-            );
-          })}
-        </div>
+        {filterTypes.map((type) => {
+          const isActive = filter === type;
+          return (
+            <button
+              key={type}
+              onClick={() => setFilter(type)}
+              style={{
+                padding: '7px 16px',
+                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                fontSize: '0.82rem',
+                fontWeight: isActive ? 600 : 400,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                border: `1px solid ${isActive ? 'var(--gold)' : 'var(--gold-border)'}`,
+                transition: 'all 0.15s',
+                background: isActive
+                  ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))'
+                  : 'transparent',
+                color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+              }}
+            >
+              {filterLabels[type]}
+            </button>
+          );
+        })}
       </div>
 
       {/* Chord grid */}

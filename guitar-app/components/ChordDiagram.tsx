@@ -99,7 +99,7 @@ export default function ChordDiagram({ chord }: ChordDiagramProps) {
           );
         } else {
           const fret = stringValue as number;
-          const y = startY + (fret - 0.5) * fretSpacing;
+          const y = startY + (fret - chord.baseFret + 0.5) * fretSpacing;
           const fingerNum = chord.fingers[i];
 
           return (
