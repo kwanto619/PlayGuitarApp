@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       'Cache-Control': 'no-cache',
     };
 
-    let res = await fetch(url, { headers });
+    const res = await fetch(url, { headers });
     httpStatus = res.status;
 
     if (res.status === 403 || res.status === 429) {
