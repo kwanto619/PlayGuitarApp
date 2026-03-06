@@ -117,7 +117,7 @@ export const importSongs = async (file: File): Promise<Song[]> => {
           const updatedSongs = await loadSongs();
           resolve(updatedSongs);
         }
-      } catch (error) {
+      } catch {
         reject(new Error('Invalid file format'));
       }
     };
