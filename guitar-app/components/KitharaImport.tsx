@@ -255,13 +255,13 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
       }
 
       if (!html) {
-        setStep('paste-html');
+        setError('Could not reach kithara.to through any proxy. Check your internet connection.');
         return;
       }
 
       const parsed = parseKitharaHtml(html);
       if (!parsed.title && !parsed.artist) {
-        setError('Could not extract song data. Try pasting the page source manually.');
+        setError('Could not extract song data. The URL may be incorrect.');
         return;
       }
 
@@ -525,9 +525,13 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                   />
                 </Field>
 
-                <Field label={lyricsBlocked ? 'Lyrics (paste manually)' : 'Lyrics'}>
+                <Field label="Lyrics">
+                  <div style={{ marginBottom: '8px', padding: '10px 14px', background: 'rgba(200,152,32,0.06)', border: '1px solid rgba(200,152,32,0.25)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-soft)', lineHeight: 1.6 }}>
+                    kithara.to encrypts lyrics client-side — they can&apos;t be auto-extracted.<br />
+                    Go to the song page → select all text on the page (<strong>Ctrl+A</strong>) → copy (<strong>Ctrl+C</strong>) → paste below.
+                  </div>
                   <VTextarea
-                    placeholder={lyricsBlocked ? 'Paste the lyrics here from kithara.to…' : ''}
+                    placeholder="Paste the lyrics here from the kithara.to page…"
                     value={form.lyrics}
                     onChange={(e) => setForm({ ...form, lyrics: e.target.value })}
                     style={{ minHeight: '220px' }}
