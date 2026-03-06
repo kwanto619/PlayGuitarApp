@@ -65,20 +65,34 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'URL is required' }, { status: 400 });
   }
 
-  // Fetch the page server-side (no CORS restrictions here)
+  // Fetch the page — try direct first, fall back to proxy if blocked
   let html: string;
   let httpStatus: number;
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'el-GR,el;q=0.9,en;q=0.8',
-        'Cache-Control': 'no-cache',
-      },
-    });
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'el-GR,el;q=0.9,en;q=0.8',
+      'Cache-Control': 'no-cache',
+    };
+
+    let res = await fetch(url, { headers });
     httpStatus = res.status;
-    html = await res.text();
+
+    if (res.status === 403 || res.status === 429) {
+      // Direct fetch blocked — try via allorigins proxy
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const proxyRes = await fetch(proxyUrl);
+      if (proxyRes.ok) {
+        const json = await proxyRes.json() as { contents: string; status: { http_code: number } };
+        html = json.contents ?? '';
+        httpStatus = json.status?.http_code ?? proxyRes.status;
+      } else {
+        html = await res.text(); // keep the 403 body as fallback
+      }
+    } else {
+      html = await res.text();
+    }
   } catch (e) {
     return Response.json({ error: 'Failed to fetch the URL: ' + (e as Error).message }, { status: 502 });
   }
