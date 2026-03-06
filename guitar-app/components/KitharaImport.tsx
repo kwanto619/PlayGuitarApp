@@ -102,8 +102,13 @@ function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'sit
   const textContent = extractDivById(html, 'text');
   if (textContent) {
     lyrics = textContent
-      .replace(/<a[^>]*class="clickPlay"[^>]*>([^<]+)<\/a>/g, '[$1]')
-      .replace(/<\/?(span|a|em|strong|b|i)[^>]*>/g, '')
+      // Handle chord anchors with clickPlay class (inline chords)
+      .replace(/<a[^>]*class=["']clickPlay["'][^>]*>([^<]+)<\/a>/g, '[$1]')
+      // Handle chord spans with class "ch" or "chord" wrapping anchors or text
+      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>\s*<a[^>]*>([^<]+)<\/a>\s*<\/span>/g, '[$2]')
+      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>([^<]+)<\/span>/g, '[$2]')
+      // Strip remaining tags (keep text content)
+      .replace(/<\/?(span|a|em|strong|b|i|u)[^>]*>/g, '')
       .replace(/<\/p>\s*<p[^>]*>/g, '\n\n').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '\n\n')
       .replace(/<\/div>\s*<div[^>]*>/g, '\n\n').replace(/<\/?div[^>]*>/g, '\n')
       .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
@@ -229,31 +234,48 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/import-song', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const data: ParsedSong & { error?: string } = await res.json();
-      if (!res.ok || data.error) { setError(data.error ?? 'Failed to parse the page.'); return; }
+      // Fetch from the browser via CORS proxy so the request uses the user's IP
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(url.trim())}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url.trim())}`,
+      ];
 
-      if (data.siteBlocked) {
+      let html = '';
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const text = await res.text();
+            if (text.includes('kithara') || text.includes('class="ti"') || text.includes('id="text"')) {
+              html = text;
+              break;
+            }
+          }
+        } catch { /* try next proxy */ }
+      }
+
+      if (!html) {
         setStep('paste-html');
         return;
       }
 
+      const parsed = parseKitharaHtml(html);
+      if (!parsed.title && !parsed.artist) {
+        setError('Could not extract song data. Try pasting the page source manually.');
+        return;
+      }
+
       setForm({
-        title:    data.title,
-        artist:   data.artist,
-        chords:   data.chords.join(', '),
-        lyrics:   data.lyrics,
+        title:    parsed.title,
+        artist:   parsed.artist,
+        chords:   parsed.chords.join(', '),
+        lyrics:   parsed.lyrics,
         notes:    '',
-        language: data.language,
+        language: parsed.language,
       });
-      setLyricsBlocked(data.lyricsBlocked);
       setStep('preview');
     } catch (e) {
-      setError('Network error: ' + (e as Error).message);
+      setError('Failed to fetch: ' + (e as Error).message);
     } finally {
       setLoading(false);
     }
