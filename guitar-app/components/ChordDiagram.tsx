@@ -105,8 +105,8 @@ export default function ChordDiagram({ chord }: ChordDiagramProps) {
           return (
             <g key={`marker-${i}`}>
               <circle
-                fill="rgb(216, 86, 0)"
-                stroke="rgb(186, 74, 0)"
+                fill="#c89820"
+                stroke="#8a6010"
                 strokeWidth="2"
                 cx={x}
                 cy={y}

@@ -5,8 +5,11 @@ import { chords } from '@/data/chords';
 import { Chord } from '@/types';
 import ChordDiagram from './ChordDiagram';
 
+const filterTypes = ['all', 'major', 'minor', '7th', 'sus'] as const;
+type FilterType = typeof filterTypes[number];
+
 export default function ChordsLibrary() {
-  const [filter, setFilter] = useState<'all' | 'major' | 'minor' | '7th' | 'sus'>('all');
+  const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
 
   const filteredChords = chords.filter((chord) => {
@@ -16,31 +19,25 @@ export default function ChordsLibrary() {
   });
 
   const playChord = (chord: Chord) => {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const audioContext = new AudioContextClass();
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AC();
     const openStringFrequencies = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
     const now = audioContext.currentTime;
     const duration = 2.0;
 
     chord.strings.forEach((fret, stringIndex) => {
       if (fret === 'x') return;
-
       const fretNumber = fret === 'o' ? 0 : fret;
       const frequency = openStringFrequencies[stringIndex] * Math.pow(2, fretNumber / 12);
-
       const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
+      const gainNode   = audioContext.createGain();
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-
       oscillator.frequency.value = frequency;
       oscillator.type = 'triangle';
-
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01);
       gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
-
       oscillator.start(now + stringIndex * 0.05);
       oscillator.stop(now + duration);
     });
@@ -48,55 +45,174 @@ export default function ChordsLibrary() {
 
   return (
     <div>
-      <div className="mb-8">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search for a chord (e.g., Am, C7, D)..."
-          className="w-full max-w-2xl mx-auto block px-8 py-4 text-lg rounded-full shadow-xl focus:shadow-2xl focus:-translate-y-1 transition-all outline-none border-2 border-gray-600 bg-gray-800 text-white placeholder-gray-400 focus:border-custom-orange"
-        />
+      {/* Search */}
+      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '560px' }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search chords — Am, C7, D..."
+            style={{
+              width: '100%',
+              padding: '14px 20px 14px 48px',
+              fontFamily: 'var(--font-cormorant, Georgia, serif)',
+              fontSize: '1.1rem',
+              letterSpacing: '0.05em',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--gold-border-mid)',
+              color: 'var(--cream)',
+              outline: 'none',
+              transition: 'border-color 0.2s, box-shadow 0.2s',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--gold)';
+              e.target.style.boxShadow = '0 0 0 2px rgba(200,152,32,0.12)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--gold-border-mid)';
+              e.target.style.boxShadow = 'none';
+            }}
+          />
+          <span style={{
+            position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
+          }}>♯</span>
+        </div>
       </div>
 
-      <div className="flex justify-center gap-3 mb-8 flex-wrap">
-        {(['all', 'major', 'minor', '7th', 'sus'] as const).map((type) => (
-          <button
-            key={type}
-            onClick={() => setFilter(type)}
-            className={`px-7 py-3 rounded-full font-semibold transition-all ${
-              filter === type
-                ? 'bg-custom-orange text-white shadow-lg shadow-custom-orange/40'
-                : 'bg-gray-700 text-gray-300 hover:-translate-y-1 hover:shadow-lg hover:bg-gray-600'
-            }`}
-          >
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </button>
-        ))}
+      {/* Filter bar */}
+      <div style={{
+        display: 'flex', justifyContent: 'center', gap: '2px',
+        marginBottom: '36px', flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
+          {filterTypes.map((type, i) => {
+            const isActive = filter === type;
+            return (
+              <button
+                key={type}
+                onClick={() => setFilter(type)}
+                style={{
+                  padding: '9px 22px',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                  fontSize: '0.85rem',
+                  fontWeight: isActive ? 600 : 400,
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: i < filterTypes.length - 1 ? '1px solid var(--gold-border)' : 'none',
+                  transition: 'all 0.15s',
+                  background: isActive
+                    ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))'
+                    : 'transparent',
+                  color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                }}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {filteredChords.map((chord) => (
-          <div
-            key={chord.name}
-            className="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl hover:-translate-y-2 hover:shadow-2xl hover:border-custom-orange transition-all"
-          >
-            <h3 className="text-3xl font-bold text-custom-orange text-center mb-4">{chord.name}</h3>
-            <div className="flex justify-center mb-4">
-              <ChordDiagram chord={chord} />
-            </div>
-            <button
-              onClick={() => playChord(chord)}
-              className="w-full bg-custom-orange hover:bg-custom-orange-hover text-white py-2 rounded-full font-semibold hover:scale-105 transition-all shadow-md hover:shadow-lg"
-            >
-              ♪ Play Sound
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {filteredChords.length === 0 && (
-        <div className="text-center text-gray-400 text-2xl py-20">No chords found</div>
+      {/* Chord grid */}
+      {filteredChords.length > 0 ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+          gap: '20px',
+        }}>
+          {filteredChords.map((chord) => (
+            <ChordCard key={chord.name} chord={chord} onPlay={playChord} />
+          ))}
+        </div>
+      ) : (
+        <div style={{
+          textAlign: 'center',
+          padding: '80px 20px',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.5rem',
+          color: 'var(--cream-muted)',
+          letterSpacing: '0.05em',
+        }}>
+          No chords found
+        </div>
       )}
+    </div>
+  );
+}
+
+function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: 'var(--bg-card)',
+        border: `1px solid ${hovered ? 'var(--gold-border-mid)' : 'var(--gold-border)'}`,
+        padding: '20px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px',
+        transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+        transform: hovered ? 'translateY(-3px)' : 'none',
+        boxShadow: hovered
+          ? '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,152,32,0.08)'
+          : '0 4px 16px rgba(0,0,0,0.4)',
+        cursor: 'default',
+      }}
+    >
+      {/* Chord name */}
+      <h3 style={{
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+        fontSize: '2.2rem',
+        fontWeight: 600,
+        color: 'var(--gold)',
+        margin: 0,
+        letterSpacing: '0.04em',
+        textShadow: hovered ? '0 0 20px rgba(200,152,32,0.25)' : 'none',
+        transition: 'text-shadow 0.2s',
+      }}>
+        {chord.name}
+      </h3>
+
+      {/* Diagram */}
+      <ChordDiagram chord={chord} />
+
+      {/* Play button */}
+      <button
+        onClick={() => onPlay(chord)}
+        style={{
+          width: '100%',
+          padding: '9px 0',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          border: '1px solid var(--gold-border-mid)',
+          background: 'linear-gradient(135deg, rgba(122,92,16,0.5), rgba(90,68,24,0.3))',
+          color: 'var(--gold-bright)',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(200,152,32,0.25), rgba(200,152,32,0.1))';
+          e.currentTarget.style.borderColor = 'var(--gold)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(122,92,16,0.5), rgba(90,68,24,0.3))';
+          e.currentTarget.style.borderColor = 'var(--gold-border-mid)';
+        }}
+      >
+        ♪ Play
+      </button>
     </div>
   );
 }

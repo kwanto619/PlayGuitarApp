@@ -1,490 +1,392 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, exportSongs, importSongs } from '@/lib/storage';
+import KitharaImport from './KitharaImport';
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.65rem',
+  letterSpacing: '0.4em',
+  textTransform: 'uppercase',
+  color: 'var(--gold-dim)',
+  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+  marginBottom: '6px',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '11px 16px',
+  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+  fontSize: '1.05rem',
+  background: 'var(--bg-input)',
+  border: '1px solid var(--gold-border-mid)',
+  color: 'var(--cream)',
+  outline: 'none',
+  boxSizing: 'border-box',
+  transition: 'border-color 0.2s',
+};
+
+function VintageInput({ style, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{ ...inputStyle, ...style }}
+      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; props.onFocus?.(e); }}
+      onBlur={(e)  => { e.target.style.borderColor = 'var(--gold-border-mid)'; props.onBlur?.(e); }}
+    />
+  );
+}
+
+function VintageTextarea({ style, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      style={{ ...inputStyle, minHeight: '180px', resize: 'vertical', fontFamily: 'var(--font-ibm-mono, monospace)', fontSize: '0.9rem', ...style }}
+      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; props.onFocus?.(e); }}
+      onBlur={(e)  => { e.target.style.borderColor = 'var(--gold-border-mid)'; props.onBlur?.(e); }}
+    />
+  );
+}
+
+function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange: (v: 'greek' | 'english') => void }) {
+  return (
+    <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
+      {(['greek', 'english'] as const).map((lang, i) => (
+        <button
+          key={lang}
+          type="button"
+          onClick={() => onChange(lang)}
+          style={{
+            flex: 1, padding: '10px 0',
+            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+            fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+            cursor: 'pointer', border: 'none',
+            borderRight: i === 0 ? '1px solid var(--gold-border)' : 'none',
+            background: value === lang ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+            color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
+            transition: 'all 0.15s',
+          }}
+        >
+          {lang === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PrimaryBtn({ onClick, children, danger = false }: { onClick: () => void; children: React.ReactNode; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '12px 28px',
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+        fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.22em',
+        textTransform: 'uppercase', cursor: 'pointer',
+        border: danger ? '1px solid rgba(224,72,72,0.45)' : '1px solid var(--gold-border-mid)',
+        background: danger
+          ? 'linear-gradient(135deg, rgba(224,72,72,0.12), rgba(224,72,72,0.06))'
+          : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+        color: danger ? 'var(--red-tuning)' : 'var(--gold-bright)',
+        transition: 'all 0.18s', whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+const corners: React.CSSProperties[] = [
+  { top: 8,    left: 8,   borderTop:    '1px solid var(--gold-border-mid)', borderLeft:   '1px solid var(--gold-border-mid)' },
+  { top: 8,    right: 8,  borderTop:    '1px solid var(--gold-border-mid)', borderRight:  '1px solid var(--gold-border-mid)' },
+  { bottom: 8, left: 8,   borderBottom: '1px solid var(--gold-border-mid)', borderLeft:   '1px solid var(--gold-border-mid)' },
+  { bottom: 8, right: 8,  borderBottom: '1px solid var(--gold-border-mid)', borderRight:  '1px solid var(--gold-border-mid)' },
+];
 
 export default function SongsLibrary() {
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [editMode, setEditMode] = useState(false);
+  const router = useRouter();
+  const [songs,          setSongs]          = useState<Song[]>([]);
+  const [showAddForm,    setShowAddForm]    = useState(false);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newSong, setNewSong] = useState({
-    title: '',
-    artist: '',
-    chords: '',
-    lyrics: '',
-    notes: '',
-    language: 'english' as 'greek' | 'english',
-  });
-  const [editedSong, setEditedSong] = useState({
-    title: '',
-    artist: '',
-    chords: '',
-    lyrics: '',
-    notes: '',
-    language: 'english' as 'greek' | 'english',
-  });
 
-  useEffect(() => {
-    loadSongs().then(setSongs);
-  }, []);
+  const blankForm = { title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' as 'greek' | 'english' };
+  const [newSong, setNewSong] = useState(blankForm);
+
+  useEffect(() => { loadSongs().then(setSongs); }, []);
 
   const handleAddSong = async () => {
-    if (!newSong.title || !newSong.artist) {
-      alert('Title and artist are required!');
-      return;
-    }
-
-    const song = {
-      title: newSong.title,
-      artist: newSong.artist,
-      chords: newSong.chords.split(',').map((c) => c.trim()).filter(Boolean),
-      lyrics: newSong.lyrics || undefined,
-      notes: newSong.notes || undefined,
-      language: newSong.language,
-    };
-
+    if (!newSong.title || !newSong.artist) { alert('Title and artist are required!'); return; }
     try {
-      const updatedSongs = await addSong(song);
-      setSongs(updatedSongs);
-      setNewSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
+      const updated = await addSong({
+        title: newSong.title, artist: newSong.artist,
+        chords: newSong.chords.split(',').map((c) => c.trim()).filter(Boolean),
+        lyrics: newSong.lyrics || undefined,
+        notes:  newSong.notes  || undefined,
+        language: newSong.language,
+      });
+      setSongs(updated);
+      setNewSong(blankForm);
       setShowAddForm(false);
-    } catch (error) {
-      alert('Failed to add song. Please try again.');
-    }
+    } catch { alert('Failed to add song. Please try again.'); }
   };
 
   const handleDeleteSong = async (id: string) => {
-    if (confirm('Are you sure you want to delete this song?')) {
-      try {
-        const updatedSongs = await deleteSong(id);
-        setSongs(updatedSongs);
-        if (selectedSong?.id === id) {
-          setSelectedSong(null);
-        }
-      } catch (error) {
-        alert('Failed to delete song. Please try again.');
-      }
-    }
-  };
-
-  const handleEditSong = () => {
-    if (!selectedSong) return;
-
-    setEditedSong({
-      title: selectedSong.title,
-      artist: selectedSong.artist,
-      chords: selectedSong.chords.join(', '),
-      lyrics: selectedSong.lyrics || '',
-      notes: selectedSong.notes || '',
-      language: selectedSong.language,
-    });
-    setEditMode(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!selectedSong || !editedSong.title || !editedSong.artist) {
-      alert('Title and artist are required!');
-      return;
-    }
-
-    const updatedSong: Song = {
-      ...selectedSong,
-      title: editedSong.title,
-      artist: editedSong.artist,
-      chords: editedSong.chords.split(',').map((c) => c.trim()).filter(Boolean),
-      lyrics: editedSong.lyrics || undefined,
-      notes: editedSong.notes || undefined,
-      language: editedSong.language,
-    };
-
+    if (!confirm('Delete this song?')) return;
     try {
-      const updatedSongs = await updateSong(selectedSong.id, updatedSong);
-      setSongs(updatedSongs);
-      setSelectedSong(updatedSong);
-      setEditMode(false);
-    } catch (error) {
-      alert('Failed to update song. Please try again.');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditMode(false);
-    setEditedSong({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' });
+      const updated = await deleteSong(id);
+      setSongs(updated);
+    } catch { alert('Failed to delete song. Please try again.'); }
   };
 
   const handleExportSongs = async () => {
-    try {
-      await exportSongs();
-    } catch (error) {
-      alert('Failed to export songs. Please try again.');
-    }
+    try { await exportSongs(); } catch { alert('Failed to export songs.'); }
   };
 
   const handleImportSongs = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      try {
-        const importedSongs = await importSongs(file);
-        setSongs(importedSongs);
-        alert(`Successfully imported ${importedSongs.length} songs!`);
-      } catch (error) {
-        alert('Failed to import songs. Please make sure the file is valid.');
-      }
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+    if (!file) return;
+    try {
+      const imported = await importSongs(file);
+      setSongs(imported);
+      alert(`Imported ${imported.length} songs.`);
+    } catch { alert('Failed to import songs. Check the file format.'); }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const visibleSongs = songs.filter((s) => languageFilter === 'all' || s.language === languageFilter);
 
   return (
     <div>
-      <div className="mb-8 flex justify-center gap-4 flex-wrap">
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-custom-orange hover:bg-custom-orange-hover text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
-        >
-          {showAddForm ? '✕ Cancel' : '+ Add New Song'}
-        </button>
+      {/* ── Kithara import ── */}
+      <KitharaImport onImported={(song) => setSongs((prev) => [song, ...prev])} />
+
+      {/* ── Action bar ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '36px', flexWrap: 'wrap' }}>
+        <PrimaryBtn onClick={() => setShowAddForm(!showAddForm)}>
+          {showAddForm ? '✕ Cancel' : '+ Add Song'}
+        </PrimaryBtn>
 
         <button
           onClick={handleExportSongs}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
+          style={{
+            padding: '12px 24px',
+            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+            fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
+            textTransform: 'uppercase', cursor: 'pointer',
+            border: '1px solid rgba(68,136,204,0.4)',
+            background: 'rgba(68,136,204,0.08)', color: 'var(--blue-tuning)',
+            transition: 'all 0.18s',
+          }}
         >
-          ⬇ Export Songs
+          ⬇ Export
         </button>
 
-        <label className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer">
-          ⬆ Import Songs
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportSongs}
-            className="hidden"
-          />
+        <label style={{
+          padding: '12px 24px',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
+          textTransform: 'uppercase', cursor: 'pointer',
+          border: '1px solid rgba(80,232,128,0.3)',
+          background: 'rgba(80,232,128,0.07)', color: 'var(--phosphor)',
+          transition: 'all 0.18s',
+        }}>
+          ⬆ Import
+          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportSongs} style={{ display: 'none' }} />
         </label>
       </div>
 
+      {/* ── Add form ── */}
       {showAddForm && (
-        <div className="bg-gray-800 border border-gray-700 rounded-3xl p-8 shadow-2xl mb-8 max-w-4xl mx-auto">
-          <h3 className="text-3xl font-bold text-custom-orange mb-6">Add New Song</h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Song Title *"
-              value={newSong.title}
-              onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
-              className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg"
-            />
-            <input
-              type="text"
-              placeholder="Artist *"
-              value={newSong.artist}
-              onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
-              className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg"
-            />
-            <input
-              type="text"
-              placeholder="Chords (comma separated, e.g., Am, F, Dm, Em)"
-              value={newSong.chords}
-              onChange={(e) => setNewSong({ ...newSong, chords: e.target.value })}
-              className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg"
-            />
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Language *</label>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setNewSong({ ...newSong, language: 'greek' })}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-lg transition-all ${
-                    newSong.language === 'greek'
-                      ? 'bg-custom-orange text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  Greek
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewSong({ ...newSong, language: 'english' })}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-lg transition-all ${
-                    newSong.language === 'english'
-                      ? 'bg-custom-orange text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  English
-                </button>
-              </div>
-            </div>
-            <input
-              type="text"
-              placeholder="Notes (optional)"
-              value={newSong.notes}
-              onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
-              className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg"
-            />
-            <textarea
-              placeholder="Lyrics (optional)"
-              value={newSong.lyrics}
-              onChange={(e) => setNewSong({ ...newSong, lyrics: e.target.value })}
-              className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg min-h-[200px] font-mono"
-            />
-            <button
-              onClick={handleAddSong}
-              className="w-full bg-custom-orange hover:bg-custom-orange-hover text-white py-4 rounded-xl font-semibold text-lg hover:scale-[1.02] transition-all shadow-lg"
-            >
-              Save Song
-            </button>
+        <div style={{
+          position: 'relative',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--gold-border)',
+          padding: 'clamp(24px, 4vw, 40px)',
+          marginBottom: '36px',
+          maxWidth: '760px',
+          margin: '0 auto 36px',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+        }}>
+          {corners.map((s, i) => <div key={i} style={{ position: 'absolute', width: 20, height: 20, ...s }} />)}
+
+          <h3 style={{
+            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+            fontSize: '1.7rem', fontWeight: 500, letterSpacing: '0.12em',
+            color: 'var(--gold)', margin: '0 0 24px',
+          }}>
+            Add New Song
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div><label style={labelStyle}>Title *</label><VintageInput placeholder="Song title" value={newSong.title} onChange={(e) => setNewSong({ ...newSong, title: e.target.value })} /></div>
+            <div><label style={labelStyle}>Artist *</label><VintageInput placeholder="Artist name" value={newSong.artist} onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })} /></div>
+            <div><label style={labelStyle}>Chords</label><VintageInput placeholder="Am, F, Dm, Em" value={newSong.chords} onChange={(e) => setNewSong({ ...newSong, chords: e.target.value })} /></div>
+            <div><label style={labelStyle}>Language *</label><LangToggle value={newSong.language} onChange={(v) => setNewSong({ ...newSong, language: v })} /></div>
+            <div><label style={labelStyle}>Notes</label><VintageInput placeholder="Optional notes" value={newSong.notes} onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })} /></div>
+            <div><label style={labelStyle}>Lyrics</label><VintageTextarea placeholder="Optional lyrics..." value={newSong.lyrics} onChange={(e) => setNewSong({ ...newSong, lyrics: e.target.value })} /></div>
+            <PrimaryBtn onClick={handleAddSong}>Save Song</PrimaryBtn>
           </div>
         </div>
       )}
 
-      {selectedSong ? (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setSelectedSong(null); setEditMode(false); }}>
-          <div className="bg-gray-800 border border-gray-700 rounded-3xl p-10 shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex-1">
-                {editMode ? (
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={editedSong.title}
-                      onChange={(e) => setEditedSong({ ...editedSong, title: e.target.value })}
-                      className="w-full text-4xl font-bold text-custom-orange bg-gray-900 px-4 py-2 rounded-xl border-2 border-gray-600 focus:border-custom-orange outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={editedSong.artist}
-                      onChange={(e) => setEditedSong({ ...editedSong, artist: e.target.value })}
-                      className="w-full text-2xl text-gray-300 bg-gray-900 px-4 py-2 rounded-xl border-2 border-gray-600 focus:border-custom-orange outline-none"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <h3 className="text-4xl font-bold text-custom-orange mb-2">{selectedSong.title}</h3>
-                    <p className="text-2xl text-gray-300">{selectedSong.artist}</p>
-                  </>
-                )}
-              </div>
-              <div className="flex gap-2 ml-4">
-                {!editMode && (
-                  <button
-                    onClick={handleEditSong}
-                    className="text-custom-orange hover:text-custom-orange font-bold text-2xl px-4 py-2 hover:bg-gray-700 rounded-lg transition-all"
-                    title="Edit song"
-                  >
-                    ✎
-                  </button>
-                )}
-                <button
-                  onClick={() => { setSelectedSong(null); setEditMode(false); }}
-                  className="text-gray-400 hover:text-gray-200 font-bold text-3xl px-4 py-2 hover:bg-gray-700 rounded-lg transition-all"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {editMode ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="font-semibold text-xl text-gray-300 mb-3 block">Chords:</label>
-                  <input
-                    type="text"
-                    value={editedSong.chords}
-                    onChange={(e) => setEditedSong({ ...editedSong, chords: e.target.value })}
-                    placeholder="Am, F, Dm, Em"
-                    className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white placeholder-gray-500 focus:border-custom-orange outline-none text-lg"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-xl text-gray-300 mb-3 block">Language:</label>
-                  <div className="flex gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setEditedSong({ ...editedSong, language: 'greek' })}
-                      className={`flex-1 px-6 py-3 rounded-xl font-semibold text-lg transition-all ${
-                        editedSong.language === 'greek'
-                          ? 'bg-custom-orange text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      Greek
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditedSong({ ...editedSong, language: 'english' })}
-                      className={`flex-1 px-6 py-3 rounded-xl font-semibold text-lg transition-all ${
-                        editedSong.language === 'english'
-                          ? 'bg-custom-orange text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      English
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-xl text-gray-300 mb-3 block">Notes:</label>
-                  <input
-                    type="text"
-                    value={editedSong.notes}
-                    onChange={(e) => setEditedSong({ ...editedSong, notes: e.target.value })}
-                    className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white focus:border-custom-orange outline-none text-lg"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-xl text-gray-300 mb-3 block">Lyrics:</label>
-                  <textarea
-                    value={editedSong.lyrics}
-                    onChange={(e) => setEditedSong({ ...editedSong, lyrics: e.target.value })}
-                    className="w-full px-6 py-3 rounded-xl border-2 border-gray-600 bg-gray-900 text-white focus:border-custom-orange outline-none text-lg min-h-[300px] font-mono"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleSaveEdit}
-                    className="flex-1 bg-custom-orange hover:bg-custom-orange-hover text-white py-4 rounded-xl font-semibold text-lg hover:scale-[1.02] transition-all shadow-lg"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-semibold text-lg hover:scale-[1.02] transition-all shadow-lg"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="mb-8">
-                  <h4 className="font-semibold text-xl text-gray-300 mb-4">Chords:</h4>
-                  <div className="flex flex-wrap gap-3">
-                    {selectedSong.chords.map((chord, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-custom-orange text-white px-6 py-3 rounded-full font-semibold text-lg shadow-md"
-                      >
-                        {chord}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedSong.notes && (
-                  <div className="mb-8">
-                    <h4 className="font-semibold text-xl text-gray-300 mb-4">Notes:</h4>
-                    <p className="text-lg text-gray-300 italic bg-gray-900 p-6 rounded-xl">{selectedSong.notes}</p>
-                  </div>
-                )}
-
-                {selectedSong.lyrics && (
-                  <div>
-                    <h4 className="font-semibold text-xl text-gray-300 mb-4">Lyrics:</h4>
-                    <pre className="whitespace-pre-wrap font-mono text-base text-gray-300 bg-gray-900 p-8 rounded-xl leading-relaxed">
-                      {selectedSong.lyrics}
-                    </pre>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mb-8 flex justify-center gap-3">
-        <button
-          onClick={() => setLanguageFilter('all')}
-          className={`px-7 py-3 rounded-full font-semibold transition-all ${
-            languageFilter === 'all'
-              ? 'bg-custom-orange text-white shadow-xl scale-110'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:scale-105'
-          }`}
-        >
-          All Songs
-        </button>
-        <button
-          onClick={() => setLanguageFilter('greek')}
-          className={`px-7 py-3 rounded-full font-semibold transition-all ${
-            languageFilter === 'greek'
-              ? 'bg-custom-orange text-white shadow-xl scale-110'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:scale-105'
-          }`}
-        >
-          🇬🇷 Greek
-        </button>
-        <button
-          onClick={() => setLanguageFilter('english')}
-          className={`px-7 py-3 rounded-full font-semibold transition-all ${
-            languageFilter === 'english'
-              ? 'bg-custom-orange text-white shadow-xl scale-110'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:scale-105'
-          }`}
-        >
-          🇬🇧 English
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-3xl font-bold text-custom-orange mb-6">
-          {languageFilter === 'all' ? 'All Songs' : languageFilter === 'greek' ? 'Greek Songs' : 'English Songs'} ({songs.filter(s => languageFilter === 'all' || s.language === languageFilter).length})
-        </h3>
-        {songs.length === 0 ? (
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center text-gray-400">
-            <p className="text-xl">No songs yet. Add your first song!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {songs.filter(song => languageFilter === 'all' || song.language === languageFilter).map((song) => (
-              <div
-                key={song.id}
-                className="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:border-custom-orange transition-all cursor-pointer hover:-translate-y-1"
-                onClick={() => setSelectedSong(song)}
+      {/* ── Language filter ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
+          {([['all', 'All Songs'], ['greek', '🇬🇷 Greek'], ['english', '🇬🇧 English']] as const).map(([val, label], i) => {
+            const isActive = languageFilter === val;
+            return (
+              <button
+                key={val}
+                onClick={() => setLanguageFilter(val)}
+                style={{
+                  padding: '10px 24px',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                  fontSize: '0.88rem', letterSpacing: '0.16em', textTransform: 'uppercase',
+                  cursor: 'pointer', border: 'none',
+                  borderRight: i < 2 ? '1px solid var(--gold-border)' : 'none',
+                  transition: 'all 0.15s',
+                  background: isActive ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+                  color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                  fontWeight: isActive ? 600 : 400,
+                }}
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="text-2xl font-bold text-custom-orange">{song.title}</h4>
-                    <p className="text-lg text-gray-400">{song.artist}</p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSong(song.id);
-                    }}
-                    className="text-red-500 hover:text-red-400 font-bold text-xl px-3 py-1 hover:bg-gray-700 rounded-lg transition-all"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {song.chords.map((chord, idx) => (
-                    <span
-                      key={idx}
-                      className="bg-custom-orange text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md"
-                    >
-                      {chord}
-                    </span>
-                  ))}
-                </div>
-                {song.notes && (
-                  <p className="mt-3 text-sm text-gray-400 italic line-clamp-2">{song.notes}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* ── Heading ── */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
+        <h3 style={{
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.8rem', fontWeight: 500, letterSpacing: '0.06em',
+          color: 'var(--gold)', margin: 0,
+        }}>
+          {languageFilter === 'all' ? 'All Songs' : languageFilter === 'greek' ? 'Greek Songs' : 'English Songs'}
+        </h3>
+        <span style={{ fontSize: '0.8rem', letterSpacing: '0.2em', color: 'var(--cream-muted)', textTransform: 'uppercase' }}>
+          ({visibleSongs.length})
+        </span>
+      </div>
+
+      {/* ── Song grid ── */}
+      {songs.length === 0 ? (
+        <div style={{
+          border: '1px solid var(--gold-border)', background: 'var(--bg-surface)',
+          padding: '48px 24px', textAlign: 'center',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.3rem', color: 'var(--cream-muted)', letterSpacing: '0.05em',
+        }}>
+          No songs yet. Add your first song above.
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: '16px',
+        }}>
+          {visibleSongs.map((song) => (
+            <SongCard
+              key={song.id}
+              song={song}
+              onClick={() => router.push(`/songs/${song.id}`)}
+              onDelete={() => handleDeleteSong(song.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SongCard({ song, onClick, onDelete }: { song: Song; onClick: () => void; onDelete: () => void }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        background: 'var(--bg-card)',
+        border: `1px solid ${hovered ? 'var(--gold-border-mid)' : 'var(--gold-border)'}`,
+        padding: '20px', cursor: 'pointer',
+        transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 8px 28px rgba(0,0,0,0.55)' : '0 3px 12px rgba(0,0,0,0.35)',
+        position: 'relative',
+      }}
+    >
+      {/* Delete */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        style={{
+          position: 'absolute', top: '12px', right: '12px',
+          padding: '4px 8px', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1rem', cursor: 'pointer',
+          border: '1px solid transparent', background: 'transparent',
+          color: 'var(--cream-muted)', transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red-tuning)'; e.currentTarget.style.borderColor = 'rgba(224,72,72,0.3)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--cream-muted)'; e.currentTarget.style.borderColor = 'transparent'; }}
+      >
+        ✕
+      </button>
+
+      <h4 style={{
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+        fontSize: '1.4rem', fontWeight: 600,
+        color: hovered ? 'var(--gold-bright)' : 'var(--gold)',
+        margin: '0 0 4px', letterSpacing: '0.03em',
+        paddingRight: '32px', transition: 'color 0.15s',
+      }}>
+        {song.title}
+      </h4>
+      <p style={{
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+        fontSize: '1rem', fontStyle: 'italic',
+        color: 'var(--cream-muted)', margin: '0 0 12px',
+      }}>
+        {song.artist}
+      </p>
+
+      {song.chords.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: song.notes ? '10px' : 0 }}>
+          {song.chords.map((chord, idx) => (
+            <span
+              key={idx}
+              style={{
+                padding: '2px 10px',
+                border: '1px solid var(--gold-border-mid)',
+                background: 'rgba(200,152,32,0.08)',
+                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                fontSize: '0.85rem', fontWeight: 600,
+                color: 'var(--gold)', letterSpacing: '0.04em',
+              }}
+            >
+              {chord}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {song.notes && (
+        <p style={{
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '0.9rem', fontStyle: 'italic',
+          color: 'var(--cream-muted)', margin: 0,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        } as React.CSSProperties}>
+          {song.notes}
+        </p>
+      )}
     </div>
   );
 }
