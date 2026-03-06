@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
   // Fetch the page server-side (no CORS restrictions here)
   let html: string;
+  let httpStatus: number;
   try {
     const res = await fetch(url, {
       headers: {
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-cache',
       },
     });
+    httpStatus = res.status;
     html = await res.text();
   } catch (e) {
     return Response.json({ error: 'Failed to fetch the URL: ' + (e as Error).message }, { status: 502 });
@@ -181,5 +183,15 @@ export async function POST(req: NextRequest) {
     lyrics,
     lyricsSnippet,
     lyricsBlocked,
+    _debug: {
+      httpStatus,
+      htmlLength: html.length,
+      htmlSnippet: html.slice(0, 800),
+      hasTitleTag: /<h1[^>]*class="ti"/.test(html),
+      hasArtistTag: /<h2[^>]*class="ar"/.test(html),
+      hasTextDiv: html.includes('id="text"'),
+      hasClickPlay: html.includes('clickPlay'),
+      hasJsonLd: html.includes('application/ld+json'),
+    },
   });
 }
