@@ -29,12 +29,23 @@ function stripHtml(s: string): string {
 }
 
 function extractDivById(html: string, id: string): string | null {
-  const startRe = new RegExp(`<div[^>]+id=["']${id}["'][^>]*>`);
-  const startM = startRe.exec(html);
-  if (!startM) return null;
-  const contentStart = startM.index + startM[0].length;
+  // Find the id attribute regardless of quote style or surrounding attributes
+  let idx = html.indexOf(`id="${id}"`);
+  if (idx === -1) idx = html.indexOf(`id='${id}'`);
+  if (idx === -1) return null;
+
+  // Walk backwards to find the opening <div that contains this id
+  const divStart = html.lastIndexOf('<div', idx);
+  if (divStart === -1) return null;
+
+  // Find end of opening tag
+  const tagEnd = html.indexOf('>', divStart);
+  if (tagEnd === -1) return null;
+
+  const contentStart = tagEnd + 1;
   let pos = contentStart;
   let depth = 1;
+
   while (depth > 0) {
     const nextOpen  = html.indexOf('<div',  pos);
     const nextClose = html.indexOf('</div', pos);

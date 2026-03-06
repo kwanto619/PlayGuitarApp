@@ -15,26 +15,26 @@ function stripHtml(s: string): string {
 
 /** Extract the full inner HTML of the first <div id="id"> accounting for nested divs */
 function extractDivById(html: string, id: string): string | null {
-  const startRe = new RegExp(`<div[^>]+id=["']${id}["'][^>]*>`);
-  const startM = startRe.exec(html);
-  if (!startM) return null;
+  let idx = html.indexOf(`id="${id}"`);
+  if (idx === -1) idx = html.indexOf(`id='${id}'`);
+  if (idx === -1) return null;
 
-  const contentStart = startM.index + startM[0].length;
+  const divStart = html.lastIndexOf('<div', idx);
+  if (divStart === -1) return null;
+
+  const tagEnd = html.indexOf('>', divStart);
+  if (tagEnd === -1) return null;
+
+  const contentStart = tagEnd + 1;
   let pos = contentStart;
   let depth = 1;
 
   while (depth > 0) {
     const nextOpen  = html.indexOf('<div',  pos);
     const nextClose = html.indexOf('</div', pos);
-    if (nextClose === -1) return null; // malformed HTML
-    if (nextOpen !== -1 && nextOpen < nextClose) {
-      depth++;
-      pos = nextOpen + 4;
-    } else {
-      depth--;
-      if (depth === 0) return html.slice(contentStart, nextClose);
-      pos = nextClose + 6;
-    }
+    if (nextClose === -1) return null;
+    if (nextOpen !== -1 && nextOpen < nextClose) { depth++; pos = nextOpen + 4; }
+    else { depth--; if (depth === 0) return html.slice(contentStart, nextClose); pos = nextClose + 6; }
   }
   return null;
 }
