@@ -234,28 +234,32 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
     setLoading(true);
     setError('');
     try {
-      // Fetch from the browser via CORS proxy so the request uses the user's IP
+      // Fetch via CORS proxies — tries each in order until one returns valid HTML
+      const target = url.trim();
       const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(url.trim())}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url.trim())}`,
+        `https://corsproxy.io/?${encodeURIComponent(target)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`,
+        `https://thingproxy.freeboard.io/fetch/${target}`,
+        `https://cors.eu.org/${target}`,
       ];
+
+      const isKitharaHtml = (t: string) =>
+        t.includes('kithara') || t.includes('class="ti"') || t.includes('id="text"');
 
       let html = '';
       for (const proxyUrl of proxies) {
         try {
-          const res = await fetch(proxyUrl);
+          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
           if (res.ok) {
             const text = await res.text();
-            if (text.includes('kithara') || text.includes('class="ti"') || text.includes('id="text"')) {
-              html = text;
-              break;
-            }
+            if (isKitharaHtml(text)) { html = text; break; }
           }
         } catch { /* try next proxy */ }
       }
 
       if (!html) {
-        setError('Could not reach kithara.to through any proxy. Check your internet connection.');
+        setError('All proxies failed or were rate-limited. Wait a minute and try again, or use the "Paste page source" fallback.');
         return;
       }
 
@@ -460,8 +464,14 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                 </p>
 
                 {error && (
-                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem' }}>
-                    {error}
+                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <span>{error}</span>
+                    <button
+                      onClick={() => { setError(''); setStep('paste-html'); }}
+                      style={{ alignSelf: 'flex-start', padding: '6px 14px', background: 'transparent', border: '1px solid rgba(224,72,72,0.5)', color: 'var(--red-tuning)', cursor: 'pointer', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.85rem', letterSpacing: '0.12em' }}
+                    >
+                      Use manual paste instead →
+                    </button>
                   </div>
                 )}
 
