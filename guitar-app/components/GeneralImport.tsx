@@ -163,49 +163,76 @@ function parseTabsyHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteB
   let artist = '';
   let tabContent = '';
 
-  // Title from JSON-LD
+  // Title + artist from JSON-LD headline: "Song Title - Artist Name"
   const ldRe = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
   let ldM: RegExpExecArray | null;
   while ((ldM = ldRe.exec(html)) !== null) {
     try {
       const item = JSON.parse(ldM[1]);
-      if (!title && item.headline) title = stripHtml(String(item.headline));
-      if (!title && item.name) title = stripHtml(String(item.name));
-    } catch { /* skip */ }
-  }
-
-  // Title from og:title fallback
-  if (!title) {
-    const ogM = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i) ||
-                html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i);
-    if (ogM) title = stripHtml(ogM[1]);
-  }
-
-  // Artist from /kallitexnis/ link
-  const artistM = html.match(/href="\/kallitexnis\/[^"]*">([^<]+)<\/a>/);
-  if (artistM) artist = stripHtml(artistM[1]);
-
-  // Tab content from __NUXT_DATA__ JSON
-  const nuxtDataM =
-    html.match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i) ||
-    html.match(/<script[^>]*type="application\/json"[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-
-  if (nuxtDataM) {
-    try {
-      tabContent = findTabString(JSON.parse(nuxtDataM[1]));
-    } catch { /* skip */ }
-  }
-
-  // Fallback: search all script tags for JSON-encoded tab content
-  if (!tabContent) {
-    const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/g;
-    let sm: RegExpExecArray | null;
-    while ((sm = scriptRe.exec(html)) !== null) {
-      const m = sm[1].match(/"([^"]*\\n[^"]*\[(?:Εισαγωγή|Κουπλέ|Ρεφραίν|Intro|Verse|Chorus|Bridge)[^\]]*\][^"]{20,})"/);
-      if (m) {
-        tabContent = m[1].replace(/\\n/g, '\n').replace(/\\r/g, '').replace(/\\\\/g, '\\');
-        break;
+      const headline = item.headline || item.name;
+      if (headline) {
+        const parts = String(headline).split(' - ');
+        if (parts.length >= 2) {
+          if (!title)  title  = stripHtml(parts[0].trim());
+          if (!artist) artist = stripHtml(parts.slice(1).join(' - ').trim());
+        } else if (!title) {
+          title = stripHtml(String(headline));
+        }
       }
+    } catch { /* skip */ }
+  }
+
+  // Fallback: <title> tag "Song - Artist | …"
+  if (!title || !artist) {
+    const titleTagM = html.match(/<title>([^<]+)<\/title>/);
+    if (titleTagM) {
+      const text = titleTagM[1].split('|')[0].trim();
+      const parts = text.split(' - ');
+      if (parts.length >= 2) {
+        if (!title)  title  = stripHtml(parts[0].trim());
+        if (!artist) artist = stripHtml(parts.slice(1).join(' - ').trim());
+      }
+    }
+  }
+
+  // Tab content from window.__NUXT__ (Nuxt 2 IIFE format)
+  // The IIFE arguments contain all data values as JS string literals
+  const nuxtScriptM = html.match(/<script[^>]*>\s*window\.__NUXT__\s*=([\s\S]*?)<\/script>/);
+  if (nuxtScriptM) {
+    const scriptContent = nuxtScriptM[1];
+
+    // Strategy A: find a string literal containing a section marker [Κουπλέ] etc.
+    const sectionM = scriptContent.match(/"((?:[^"\\]|\\.){30,}\[(?:Εισαγωγή|Κουπλέ|Ρεφραίν|Intro|Verse|Chorus|Bridge)(?:[^"\\]|\\.){20,})"/);
+    if (sectionM) {
+      tabContent = sectionM[1]
+        .replace(/\\n/g, '\n').replace(/\\r/g, '')
+        .replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/\\t/g, '\t');
+    }
+
+    // Strategy B: iterate long string literals, find one with chord lines
+    if (!tabContent) {
+      const stringRe = /"((?:[^"\\]|\\.){100,})"/g;
+      let sm: RegExpExecArray | null;
+      while ((sm = stringRe.exec(scriptContent)) !== null) {
+        const s = sm[1]
+          .replace(/\\n/g, '\n').replace(/\\r/g, '')
+          .replace(/\\\\/g, '\\').replace(/\\"/g, '"');
+        const lines = s.split('\n');
+        if (lines.length >= 4 && lines.some((l) => isChordLine(l))) {
+          tabContent = s;
+          break;
+        }
+      }
+    }
+  }
+
+  // Fallback: __NUXT_DATA__ JSON (Nuxt 3)
+  if (!tabContent) {
+    const nuxtDataM =
+      html.match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i) ||
+      html.match(/<script[^>]*type="application\/json"[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (nuxtDataM) {
+      try { tabContent = findTabString(JSON.parse(nuxtDataM[1])); } catch { /* skip */ }
     }
   }
 
