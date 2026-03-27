@@ -108,7 +108,7 @@ export default function ChordsLibrary() {
               key={type}
               onClick={() => setFilter(type)}
               style={{
-                padding: '7px 16px',
+                padding: '10px 16px',
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: '0.82rem',
                 fontWeight: isActive ? 600 : 400,
@@ -121,6 +121,7 @@ export default function ChordsLibrary() {
                   ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))'
                   : 'transparent',
                 color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                minHeight: '44px',
               }}
             >
               {filterLabels[type]}
@@ -201,7 +202,8 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
         onClick={() => onPlay(chord)}
         style={{
           width: '100%',
-          padding: '9px 0',
+          padding: '12px 0',
+          minHeight: '44px',
           fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '0.85rem',
           fontWeight: 600,

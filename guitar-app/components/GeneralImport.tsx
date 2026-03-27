@@ -313,7 +313,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
     <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
       {(['greek', 'english'] as const).map((lang, i) => (
         <button key={lang} type="button" onClick={() => onChange(lang)} style={{
-          flex: 1, padding: '10px 0',
+          flex: 1, padding: '12px 0', minHeight: '44px',
           fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
           cursor: 'pointer', border: 'none',

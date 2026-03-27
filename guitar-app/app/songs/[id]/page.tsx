@@ -234,15 +234,10 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             <div><label style={labelStyle}>Lyrics</label><VintageTextarea value={edited.lyrics} onChange={(e) => setEdited({ ...edited, lyrics: e.target.value })} /></div>
           </div>
         ) : (
-          /* ── View — two-column layout ── */
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'clamp(260px, 35%, 380px) 1fr',
-            gap: 'clamp(32px, 5vw, 64px)',
-            alignItems: 'start',
-          }}>
+          /* ── View — two-column layout (collapses to one on mobile) ── */
+          <div className="song-two-col">
             {/* ── LEFT: metadata ── */}
-            <div style={{ position: 'sticky', top: '80px' }}>
+            <div className="song-sidebar">
               {/* Language badge */}
               <div style={{
                 fontSize: '0.58rem', letterSpacing: '0.5em', color: 'var(--gold-dim)',
@@ -289,24 +284,16 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                       <ChordTooltip key={idx} name={chord}>
                         <span style={{
                           display: 'inline-block',
-                          padding: '5px 16px',
+                          padding: '8px 16px',
                           border: '1px solid var(--gold-border-mid)',
                           background: 'rgba(200,152,32,0.1)',
                           fontFamily: 'var(--font-cormorant, Georgia, serif)',
                           fontSize: '1.1rem', fontWeight: 600,
                           color: 'var(--gold-bright)', letterSpacing: '0.06em',
-                          cursor: 'default',
-                          transition: 'background 0.15s, border-color 0.15s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(200,152,32,0.22)';
-                          e.currentTarget.style.borderColor = 'var(--gold)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(200,152,32,0.1)';
-                          e.currentTarget.style.borderColor = 'var(--gold-border-mid)';
-                        }}
-                        >
+                          cursor: 'pointer',
+                          minHeight: '44px',
+                          boxSizing: 'border-box',
+                        }}>
                           {chord}
                         </span>
                       </ChordTooltip>
@@ -400,6 +387,7 @@ const backBtnStyle: React.CSSProperties = {
   background: 'transparent', color: 'var(--cream-muted)',
   transition: 'all 0.15s',
   display: 'flex', alignItems: 'center', gap: '8px',
+  minHeight: '44px', whiteSpace: 'nowrap' as const,
 };
 
 function ActionBtn({ onClick, children, gold, danger }: {
@@ -409,7 +397,7 @@ function ActionBtn({ onClick, children, gold, danger }: {
     <button
       onClick={onClick}
       style={{
-        padding: '8px 20px',
+        padding: '10px 20px',
         fontFamily: 'var(--font-cormorant, Georgia, serif)',
         fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.2em',
         textTransform: 'uppercase', cursor: 'pointer',
@@ -421,6 +409,7 @@ function ActionBtn({ onClick, children, gold, danger }: {
                   :          'transparent',
         color: danger ? 'var(--red-tuning)' : gold ? 'var(--gold-bright)' : 'var(--cream-muted)',
         transition: 'all 0.15s',
+        minHeight: '44px',
       }}
     >
       {children}

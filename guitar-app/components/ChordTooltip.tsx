@@ -18,8 +18,14 @@ interface ChordTooltipProps {
 
 export default function ChordTooltip({ name, children }: ChordTooltipProps) {
   const [pos, setPos]       = useState<TooltipPos | null>(null);
+  const [isTouch, setIsTouch] = useState(false);
   const triggerRef          = useRef<HTMLSpanElement>(null);
   const chord: Chord | undefined = chordLibrary.find((c) => c.name === name);
+
+  // Detect touch-primary devices once on mount
+  useEffect(() => {
+    setIsTouch(window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  }, []);
 
   // Recalculate position on scroll / resize while open
   useEffect(() => {
@@ -37,29 +43,45 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
     };
   }, [pos]);
 
+  // On touch: close when tapping outside the trigger
+  useEffect(() => {
+    if (!isTouch || !pos) return;
+    const handleOutside = (e: TouchEvent) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        setPos(null);
+      }
+    };
+    document.addEventListener('touchstart', handleOutside);
+    return () => document.removeEventListener('touchstart', handleOutside);
+  }, [isTouch, pos]);
+
   if (!chord) return <>{children}</>;
 
-  const handleEnter = () => {
+  const getPos = () => {
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     setPos({ top: r.top, left: r.left + r.width / 2 });
   };
 
-  const handleLeave = () => setPos(null);
+  const handleEnter = () => { if (!isTouch) getPos(); };
+  const handleLeave = () => { if (!isTouch) setPos(null); };
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isTouch) return;
+    e.stopPropagation();
+    pos ? setPos(null) : getPos();
+  };
 
-  // Tooltip height ≈ 260px — place it above the trigger; flip below if too close to top
+  // Tooltip dimensions — slightly wider on small screens
+  const TOOLTIP_W = Math.min(200, window.innerWidth - 24);
   const TOOLTIP_H = 270;
-  const TOOLTIP_W = 200;
   const GAP = 10;
 
   const tooltipStyle: React.CSSProperties | null = pos
     ? {
         position: 'fixed',
-        // Prefer above; fall back to below if not enough space
         top: pos.top - TOOLTIP_H - GAP > 0
           ? pos.top - TOOLTIP_H - GAP
           : pos.top + GAP + 24,
-        // Centre horizontally, clamp to viewport edges
         left: Math.min(
           Math.max(pos.left - TOOLTIP_W / 2, 8),
           window.innerWidth - TOOLTIP_W - 8,
@@ -79,6 +101,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
         style={{ display: 'inline-block' }}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
+        onClick={handleClick}
       >
         {children}
       </span>

@@ -74,3 +74,42 @@ h1, h2, h3, h4, h5, h6 {
 .fade-up {
   animation: fadeSlideUp 0.45s ease-out both;
 }
+
+/* ── Remove 300ms tap delay on all interactive elements ── */
+button, a, [role="button"], input, textarea, select, label {
+  touch-action: manipulation;
+}
+
+/* ── Song detail: responsive two-column layout ── */
+.song-two-col {
+  display: grid;
+  grid-template-columns: clamp(260px, 35%, 380px) 1fr;
+  gap: clamp(32px, 5vw, 64px);
+  align-items: start;
+}
+
+.song-sidebar {
+  position: sticky;
+  top: 80px;
+}
+
+@media (max-width: 640px) {
+  .song-two-col {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .song-sidebar {
+    position: static;
+  }
+}
+
+/* ── Ensure minimum tap target size on touch screens ── */
+@media (hover: none) and (pointer: coarse) {
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

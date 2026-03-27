@@ -243,7 +243,7 @@ export default function SongsLibrary() {
                 key={val}
                 onClick={() => setLanguageFilter(val)}
                 style={{
-                  padding: '10px 24px',
+                  padding: '12px 20px',
                   fontFamily: 'var(--font-cormorant, Georgia, serif)',
                   fontSize: '0.88rem', letterSpacing: '0.16em', textTransform: 'uppercase',
                   cursor: 'pointer', border: 'none',
@@ -252,6 +252,7 @@ export default function SongsLibrary() {
                   background: isActive ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
                   color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
                   fontWeight: isActive ? 600 : 400,
+                  minHeight: '44px',
                 }}
               >
                 {label}
@@ -327,11 +328,13 @@ function SongCard({ song, onClick, onDelete }: { song: Song; onClick: () => void
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         style={{
-          position: 'absolute', top: '12px', right: '12px',
-          padding: '4px 8px', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          position: 'absolute', top: '8px', right: '8px',
+          padding: '8px 12px', fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '1rem', cursor: 'pointer',
           border: '1px solid transparent', background: 'transparent',
           color: 'var(--cream-muted)', transition: 'all 0.15s',
+          minHeight: '44px', minWidth: '44px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red-tuning)'; e.currentTarget.style.borderColor = 'rgba(224,72,72,0.3)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--cream-muted)'; e.currentTarget.style.borderColor = 'transparent'; }}
