@@ -14,10 +14,18 @@ export interface Song {
   lyrics?: string;
   notes?: string;
   language: 'greek' | 'english';
+  bpm?: number;
 }
 
 export interface Playlist {
   id: string;
   name: string;
   song_ids: string[];
+}
+
+export interface Progression {
+  id: string;
+  name: string;
+  chords: string[];
+  bpm: number;
 }

@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import PlaylistsLibrary from '@/components/PlaylistsLibrary';
+import ProgressionBuilder from '@/components/ProgressionBuilder';
 
-export const metadata = { title: 'Playlists — Guitar Companion' };
+export const metadata = { title: 'Chord Progressions — Guitar Companion' };
 
-export default function PlaylistsPage() {
+export default function ProgressionsPage() {
   return (
     <main style={{ minHeight: '100vh' }}>
-      {/* Header */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%)',
@@ -16,8 +15,7 @@ export default function PlaylistsPage() {
         height: '60px',
       }}>
         <Link href="/" style={{
-          padding: '8px 18px',
-          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          padding: '8px 18px', minHeight: '44px',
           fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
           textTransform: 'uppercase', cursor: 'pointer',
           border: '1px solid var(--gold-border-mid)',
@@ -28,17 +26,18 @@ export default function PlaylistsPage() {
           ← Home
         </Link>
         <span style={{
-          fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '0.65rem', letterSpacing: '0.45em',
           textTransform: 'uppercase', color: 'var(--gold-dim)',
         }}>
-          ♪ Playlists
+          ♩ Progressions
         </span>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: 'clamp(32px, 5vw, 64px) clamp(16px, 4vw, 48px)' }}>
-        <PlaylistsLibrary />
+      <div style={{
+        maxWidth: '900px', margin: '0 auto',
+        padding: 'clamp(40px, 7vw, 80px) clamp(20px, 4vw, 48px)',
+      }}>
+        <ProgressionBuilder />
       </div>
     </main>
   );

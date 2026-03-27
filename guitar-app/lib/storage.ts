@@ -1,4 +1,4 @@
-import { Song, Playlist } from '@/types';
+import { Song, Playlist, Progression } from '@/types';
 import { supabase } from './supabase';
 
 export const loadSongs = async (): Promise<Song[]> => {
@@ -20,6 +20,7 @@ export const loadSongs = async (): Promise<Song[]> => {
     lyrics: song.lyrics || undefined,
     notes: song.notes || undefined,
     language: song.language as 'greek' | 'english',
+    bpm: song.bpm ?? undefined,
   }));
 };
 
@@ -65,6 +66,7 @@ export const updateSong = async (id: string, updatedSong: Partial<Song>): Promis
       lyrics: updatedSong.lyrics || null,
       notes: updatedSong.notes || null,
       language: updatedSong.language,
+      bpm: updatedSong.bpm ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);
@@ -129,6 +131,34 @@ export const deletePlaylist = async (id: string): Promise<Playlist[]> => {
   const { error } = await supabase.from('playlists').delete().eq('id', id);
   if (error) { console.error('Error deleting playlist:', error); throw new Error('Failed to delete playlist'); }
   return loadPlaylists();
+};
+
+// ── Progressions ──────────────────────────────────────────────────────────────
+
+export const loadProgressions = async (): Promise<Progression[]> => {
+  const { data, error } = await supabase
+    .from('progressions')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('Error loading progressions:', error); return []; }
+  return data.map((p) => ({ id: p.id, name: p.name, chords: p.chords ?? [], bpm: p.bpm ?? 100 }));
+};
+
+export const addProgression = async (name: string, chords: string[], bpm: number): Promise<Progression[]> => {
+  const { error } = await supabase.from('progressions').insert({ name, chords, bpm });
+  if (error) { console.error('Error adding progression:', error); throw new Error(error.message); }
+  return loadProgressions();
+};
+
+export const updateProgression = async (id: string, updates: Partial<Pick<Progression, 'name' | 'chords' | 'bpm'>>): Promise<void> => {
+  const { error } = await supabase.from('progressions').update(updates).eq('id', id);
+  if (error) { console.error('Error updating progression:', error); throw new Error(error.message); }
+};
+
+export const deleteProgression = async (id: string): Promise<Progression[]> => {
+  const { error } = await supabase.from('progressions').delete().eq('id', id);
+  if (error) { console.error('Error deleting progression:', error); throw new Error(error.message); }
+  return loadProgressions();
 };
 
 // ── Song import ───────────────────────────────────────────────────────────────

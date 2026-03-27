@@ -62,7 +62,7 @@ function GoldBtn({
   const variants: Record<string, React.CSSProperties> = {
     primary: {
       borderColor: 'var(--gold-border-mid)',
-      background: 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+      background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
       color: 'var(--gold-bright)',
     },
     ghost: {
@@ -107,7 +107,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (na
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(8,5,2,0.88)', backdropFilter: 'blur(6px)',
+        background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
       }}
     >
@@ -180,7 +180,7 @@ function SongPickerModal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(8,5,2,0.88)', backdropFilter: 'blur(6px)',
+        background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
       }}
     >
@@ -226,8 +226,8 @@ function SongPickerModal({
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '12px 16px',
-                  background: already ? 'rgba(200,152,32,0.06)' : 'var(--bg-card)',
-                  border: `1px solid ${already ? 'rgba(200,152,32,0.25)' : 'var(--gold-border)'}`,
+                  background: already ? 'rgba(0,196,180,0.06)' : 'var(--bg-card)',
+                  border: `1px solid ${already ? 'rgba(0,196,180,0.25)' : 'var(--gold-border)'}`,
                   gap: '12px',
                 }}
               >
@@ -252,7 +252,7 @@ function SongPickerModal({
                       fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.15em',
                       textTransform: 'uppercase', cursor: 'pointer',
                       border: '1px solid var(--gold-border-mid)',
-                      background: 'linear-gradient(135deg, rgba(122,92,16,0.5), rgba(90,68,24,0.3))',
+                      background: 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
                       color: 'var(--gold-bright)', whiteSpace: 'nowrap',
                     }}
                   >
@@ -435,7 +435,7 @@ function PlaylistDetail({
               {song.chords.length > 0 && (
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '160px' }}>
                   {song.chords.slice(0, 4).map((c) => (
-                    <span key={c} style={{ padding: '2px 7px', fontSize: '0.7rem', fontFamily: 'var(--font-cormorant, Georgia, serif)', letterSpacing: '0.08em', color: 'var(--gold-dim)', border: '1px solid var(--gold-border)', background: 'rgba(200,152,32,0.04)' }}>
+                    <span key={c} style={{ padding: '2px 7px', fontSize: '0.7rem', fontFamily: 'var(--font-cormorant, Georgia, serif)', letterSpacing: '0.08em', color: 'var(--gold-dim)', border: '1px solid var(--gold-border)', background: 'rgba(0,196,180,0.04)' }}>
                       {c}
                     </span>
                   ))}
@@ -490,7 +490,7 @@ function PlaylistCard({ playlist, songCount, onClick }: { playlist: Playlist; so
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-4px)' : 'none',
         boxShadow: hovered
-          ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,152,32,0.08)'
+          ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.08)'
           : '0 4px 16px rgba(0,0,0,0.4)',
         display: 'flex',
         flexDirection: 'column',
@@ -514,7 +514,7 @@ function PlaylistCard({ playlist, songCount, onClick }: { playlist: Playlist; so
         fontSize: '1.5rem', fontWeight: 600,
         color: hovered ? 'var(--gold-bright)' : 'var(--gold)',
         margin: 0, letterSpacing: '0.04em',
-        textShadow: hovered ? '0 0 20px rgba(200,152,32,0.2)' : 'none',
+        textShadow: hovered ? '0 0 20px rgba(0,196,180,0.2)' : 'none',
         transition: 'color 0.2s, text-shadow 0.2s',
       }}>
         {playlist.name}

@@ -117,6 +117,56 @@ function SongsIcon() {
   );
 }
 
+function MetronomeIcon() {
+  // Pendulum metronome shape
+  const cx = 40, cy = 62;
+  return (
+    <svg viewBox="0 0 80 80" width="80" height="80" fill="none" stroke="currentColor">
+      {/* Base trapezoid */}
+      <path d="M18 70 L28 30 L52 30 L62 70Z" strokeWidth="2" strokeLinejoin="round" opacity="0.6" />
+      {/* Pendulum rod */}
+      <line x1={cx} y1={cy} x2="55" y2="16" strokeWidth="2.5" strokeLinecap="round" />
+      {/* Weight on rod */}
+      <rect x="49" y="12" width="12" height="8" rx="2" fill="currentColor" stroke="none" opacity="0.85" />
+      {/* Pivot dot */}
+      <circle cx={cx} cy={cy} r="3.5" fill="currentColor" stroke="none" />
+      {/* Tick marks at base */}
+      <line x1="24" y1="70" x2="56" y2="70" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
+      {/* BPM label */}
+      <text x={cx} y="77" textAnchor="middle" fontSize="6" letterSpacing="2"
+            fill="currentColor" stroke="none" opacity="0.4" fontFamily="monospace">BPM</text>
+    </svg>
+  );
+}
+
+function ProgressionsIcon() {
+  // Four chord boxes connected by arrow
+  return (
+    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
+      {/* Chord boxes */}
+      {[8, 26, 44, 62].map((x, i) => (
+        <rect key={i} x={x} y="24" width="14" height="20" rx="2"
+              strokeWidth="1.8" opacity={i === 0 ? 0.9 : 0.6 - i * 0.05} />
+      ))}
+      {/* Chord labels inside */}
+      {['Am','F','C','G'].map((c, i) => (
+        <text key={i} x={15 + i * 18} y="37" textAnchor="middle"
+              fontSize="5.5" letterSpacing="0.5" fill="currentColor" stroke="none" opacity="0.85"
+              fontFamily="monospace">
+          {c}
+        </text>
+      ))}
+      {/* Connecting arrows */}
+      {[22, 40, 58].map((x) => (
+        <line key={x} x1={x} y1="34" x2={x + 4} y2="34" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+      ))}
+      {/* Loop arc */}
+      <path d="M8 44 Q40 60 72 44" strokeWidth="1.5" strokeLinecap="round" opacity="0.3" strokeDasharray="3 2" />
+      <polygon points="68,41 72,44 68,47" fill="currentColor" stroke="none" opacity="0.35" />
+    </svg>
+  );
+}
+
 function PlaylistsIcon() {
   // Ordered list with a small music note accent
   return (
@@ -167,6 +217,20 @@ const cards = [
     description: 'Group songs into playlists for gigs, practice sessions, or any occasion.',
     Icon:        PlaylistsIcon,
   },
+  {
+    href:        '/metronome',
+    label:       'Metronome',
+    subtitle:    'Keep the beat',
+    description: 'BPM slider, tap tempo, and visual beat indicator. Saved per song so it\'s ready when you open it.',
+    Icon:        MetronomeIcon,
+  },
+  {
+    href:        '/progressions',
+    label:       'Progressions',
+    subtitle:    'Chord sequences',
+    description: 'Build chord progressions like Am–F–C–G, loop them with the metronome, and save them for practice.',
+    Icon:        ProgressionsIcon,
+  },
 ] as const;
 
 function NavCard({ href, label, subtitle, description, Icon }: typeof cards[number]) {
@@ -180,14 +244,14 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
         style={{
           position: 'relative',
           background: hovered ? 'var(--bg-surface)' : 'var(--bg-card)',
-          border: `1px solid ${hovered ? 'var(--gold-border-mid)' : 'var(--gold-border)'}`,
+          border: `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border)'}`,
           padding: 'clamp(32px, 5vw, 52px) clamp(24px, 4vw, 40px)',
           cursor: 'pointer',
-          transition: 'background 0.25s, border-color 0.25s, transform 0.25s, box-shadow 0.25s',
-          transform: hovered ? 'translateY(-6px)' : 'none',
+          transition: 'background 0.3s, border-color 0.3s, transform 0.3s, box-shadow 0.3s',
+          transform: hovered ? 'translateY(-8px)' : 'none',
           boxShadow: hovered
-            ? '0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(200,152,32,0.07)'
-            : '0 4px 20px rgba(0,0,0,0.4)',
+            ? '0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,196,180,0.12), 0 0 48px rgba(0,196,180,0.07)'
+            : '0 2px 12px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -195,23 +259,24 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
           gap: '20px',
           height: '100%',
           boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
-        {/* Corner brackets */}
-        {([
-          { top:  8, left:  8, borderTop:    `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}`, borderLeft:   `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}` },
-          { top:  8, right: 8, borderTop:    `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}`, borderRight:  `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}` },
-          { bottom: 8, left:  8, borderBottom: `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}`, borderLeft:   `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}` },
-          { bottom: 8, right: 8, borderBottom: `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}`, borderRight:  `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}` },
-        ] as React.CSSProperties[]).map((s, i) => (
-          <div key={i} style={{ position: 'absolute', width: 18, height: 18, transition: 'border-color 0.25s', ...s }} />
-        ))}
+        {/* Teal top accent line */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+          background: hovered
+            ? 'linear-gradient(90deg, transparent, var(--gold-bright), transparent)'
+            : 'transparent',
+          boxShadow: hovered ? '0 0 12px rgba(0,232,213,0.5)' : 'none',
+          transition: 'background 0.3s, box-shadow 0.3s',
+        }} />
 
         {/* Icon */}
         <div style={{
           color: hovered ? 'var(--gold-bright)' : 'var(--gold)',
           transition: 'color 0.25s, filter 0.25s',
-          filter: hovered ? 'drop-shadow(0 0 12px rgba(232,192,64,0.35))' : 'none',
+          filter: hovered ? 'drop-shadow(0 0 12px rgba(0,232,213,0.35))' : 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -249,16 +314,14 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
             color: hovered ? 'var(--gold-bright)' : 'var(--gold)',
             margin: '0 0 14px',
             transition: 'color 0.25s',
-            textShadow: hovered ? '0 0 30px rgba(232,192,64,0.2)' : 'none',
+            textShadow: hovered ? '0 0 30px rgba(0,232,213,0.2)' : 'none',
           }}>
             {label}
           </h2>
           <p style={{
-            fontFamily: 'var(--font-cormorant, Georgia, serif)',
-            fontSize: 'clamp(0.95rem, 1.5vw, 1.1rem)',
-            fontStyle: 'italic',
-            color: 'var(--cream-muted)',
-            lineHeight: 1.65,
+            fontSize: 'clamp(0.9rem, 1.5vw, 1rem)',
+            color: 'var(--cream-soft)',
+            lineHeight: 1.6,
             margin: 0,
           }}>
             {description}
@@ -290,59 +353,80 @@ export default function Home() {
       {/* ── Header ── */}
       <header style={{
         borderBottom: '1px solid var(--gold-border)',
-        background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%)',
-        padding: 'clamp(36px, 6vw, 64px) clamp(20px, 4vw, 40px)',
+        background: 'var(--bg-base)',
+        padding: 'clamp(48px, 8vw, 88px) clamp(20px, 4vw, 40px)',
         textAlign: 'center',
         position: 'relative',
+        overflow: 'hidden',
       }}>
-        {/* Horizontal rule pattern */}
+        {/* Teal radial glow behind title */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(200,152,32,0.018) 24px, rgba(200,152,32,0.018) 25px)',
+          background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(0,196,180,0.07) 0%, transparent 70%)',
         }} />
 
-        <div style={{ position: 'relative', display: 'inline-block', padding: 'clamp(16px, 3vw, 24px) clamp(32px, 6vw, 72px)' }}>
-          {/* Corner brackets */}
-          {([
-            { top: -2, left: -2,   borderTop:    '2px solid var(--gold)', borderLeft:   '2px solid var(--gold)' },
-            { top: -2, right: -2,  borderTop:    '2px solid var(--gold)', borderRight:  '2px solid var(--gold)' },
-            { bottom: -2, left: -2,  borderBottom: '2px solid var(--gold)', borderLeft:   '2px solid var(--gold)' },
-            { bottom: -2, right: -2, borderBottom: '2px solid var(--gold)', borderRight:  '2px solid var(--gold)' },
-          ] as React.CSSProperties[]).map((s, i) => (
-            <div key={i} style={{ position: 'absolute', width: 16, height: 16, ...s }} />
-          ))}
-          <div style={{
-            border: '1px solid var(--gold-border-mid)',
-            background: 'rgba(0,0,0,0.25)',
-            padding: 'clamp(14px, 2.5vw, 20px) clamp(28px, 5vw, 60px)',
-          }}>
-            <div style={{
-              fontSize: '0.58rem', letterSpacing: '0.55em', color: 'var(--gold-dim)',
-              textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)',
-              marginBottom: '6px',
-            }}>
-              ✦ Companion Series ✦
-            </div>
-            <h1 style={{
-              fontFamily: 'var(--font-cormorant, Georgia, serif)',
-              fontSize: 'clamp(2.6rem, 6vw, 5rem)',
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              color: 'var(--gold-bright)',
-              margin: 0,
-              lineHeight: 1.05,
-              textShadow: '0 0 60px rgba(232,192,64,0.2)',
-            }}>
-              Guitar Companion
-            </h1>
-            <div style={{
-              fontSize: '0.58rem', letterSpacing: '0.5em', color: 'var(--cream-muted)',
-              textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)',
-              marginTop: '8px',
-            }}>
-              Tuner · Chords · Songs · Playlists
-            </div>
+        <div style={{ position: 'relative' }}>
+          {/* Logo mark */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="72" height="72">
+              <defs>
+                <filter id="logo-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <clipPath id="logo-pick-clip">
+                  <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"/>
+                </clipPath>
+              </defs>
+              <ellipse cx="50" cy="50" rx="26" ry="30" fill="rgba(0,196,180,0.06)"/>
+              <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"
+                    fill="rgba(0,196,180,0.07)" stroke="#00c4b4" strokeWidth="2"/>
+              <g clipPath="url(#logo-pick-clip)">
+                <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
+                      stroke="#00e8d5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
+                      opacity="0.25" filter="url(#logo-glow)"/>
+                <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
+                      stroke="#00e8d5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </g>
+            </svg>
           </div>
+
+          <div style={{
+            fontSize: '0.65rem', letterSpacing: '0.55em', color: 'var(--gold-dim)',
+            textTransform: 'uppercase', marginBottom: '20px',
+          }}>
+            Guitar Companion
+          </div>
+
+          <h1 style={{
+            fontSize: 'clamp(3rem, 8vw, 6.5rem)',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            margin: '0 0 16px',
+            lineHeight: 1,
+            background: 'linear-gradient(135deg, #ffffff 30%, var(--gold-bright) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>
+            Play Guitar
+          </h1>
+
+          {/* Teal accent line */}
+          <div style={{
+            width: '64px', height: '3px', margin: '0 auto 20px',
+            background: 'linear-gradient(90deg, transparent, var(--gold-bright), transparent)',
+            boxShadow: '0 0 16px rgba(0,232,213,0.6)',
+          }} />
+
+          <p style={{
+            fontSize: 'clamp(0.9rem, 1.5vw, 1.05rem)',
+            color: 'var(--cream-soft)',
+            margin: 0,
+            letterSpacing: '0.02em',
+          }}>
+            Tuner · Chords · Songs · Playlists · Metronome · Progressions
+          </p>
         </div>
       </header>
 
@@ -366,14 +450,12 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer style={{
         borderTop: '1px solid var(--gold-border)',
-        padding: '20px',
+        padding: '24px',
         textAlign: 'center',
-        fontFamily: 'var(--font-cormorant, Georgia, serif)',
-        fontSize: '0.6rem',
-        letterSpacing: '0.4em',
+        fontSize: '0.7rem',
+        letterSpacing: '0.25em',
         textTransform: 'uppercase',
         color: 'var(--cream-muted)',
-        opacity: 0.4,
       }}>
         Guitar Companion · All rights reserved
       </footer>

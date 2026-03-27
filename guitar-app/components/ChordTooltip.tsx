@@ -113,7 +113,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
             background: 'var(--bg-surface)',
             border: '1px solid var(--gold-border-mid)',
             padding: '12px 14px 10px',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(200,152,32,0.07)',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,196,180,0.07)',
           }}>
             {/* Name */}
             <div style={{
@@ -122,7 +122,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
               fontSize: '1.4rem', fontWeight: 600,
               letterSpacing: '0.06em', color: 'var(--gold-bright)',
               marginBottom: '4px',
-              textShadow: '0 0 20px rgba(232,192,64,0.2)',
+              textShadow: '0 0 20px rgba(0,232,213,0.2)',
             }}>
               {chord.name}
             </div>

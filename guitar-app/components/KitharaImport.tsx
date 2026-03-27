@@ -191,7 +191,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
           fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
           cursor: 'pointer', border: 'none',
           borderRight: i === 0 ? '1px solid var(--gold-border)' : 'none',
-          background: value === lang ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+          background: value === lang ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
           color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
           transition: 'all 0.15s',
         }}>
@@ -324,7 +324,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
             textTransform: 'uppercase',
             cursor: 'pointer',
             border: '1px solid var(--gold-border-mid)',
-            background: 'linear-gradient(135deg, rgba(200,152,32,0.18), rgba(200,152,32,0.06))',
+            background: 'linear-gradient(135deg, rgba(0,196,180,0.18), rgba(0,196,180,0.06))',
             color: 'var(--gold-bright)',
             transition: 'all 0.2s',
             display: 'flex',
@@ -347,7 +347,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
           onClick={reset}
           style={{
             position: 'fixed', inset: 0,
-            background: 'rgba(8,5,2,0.88)',
+            background: 'rgba(0,0,0,0.88)',
             backdropFilter: 'blur(6px)',
             zIndex: 200,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -396,7 +396,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
             {/* ── Step 2b: Paste HTML (site blocked) ── */}
             {step === 'paste-html' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ padding: '14px 16px', border: '1px solid rgba(200,152,32,0.35)', background: 'rgba(200,152,32,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
+                <div style={{ padding: '14px 16px', border: '1px solid rgba(0,196,180,0.35)', background: 'rgba(0,196,180,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
                   <strong style={{ color: 'var(--gold)' }}>kithara.to blocks automated requests.</strong><br />
                   To import, do the following:<br />
                   1. Open the song page in a new tab<br />
@@ -434,7 +434,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                         setError('Failed to parse the pasted HTML.');
                       }
                     }}
-                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
+                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
                   >
                     Parse →
                   </button>
@@ -484,7 +484,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                     fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
                     textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer',
                     border: '1px solid var(--gold-border-mid)',
-                    background: loading ? 'transparent' : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+                    background: loading ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
                     color: loading ? 'var(--cream-muted)' : 'var(--gold-bright)',
                     transition: 'all 0.2s',
                     opacity: loading ? 0.6 : 1,
@@ -501,8 +501,8 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                 {lyricsBlocked && (
                   <div style={{
                     padding: '12px 16px',
-                    border: '1px solid rgba(200,152,32,0.3)',
-                    background: 'rgba(200,152,32,0.06)',
+                    border: '1px solid rgba(0,196,180,0.3)',
+                    background: 'rgba(0,196,180,0.06)',
                     fontFamily: 'var(--font-cormorant, Georgia, serif)',
                     fontSize: '0.95rem', fontStyle: 'italic',
                     color: 'var(--cream-soft)', lineHeight: 1.6,
@@ -536,7 +536,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                 </Field>
 
                 <Field label="Lyrics">
-                  <div style={{ marginBottom: '8px', padding: '10px 14px', background: 'rgba(200,152,32,0.06)', border: '1px solid rgba(200,152,32,0.25)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-soft)', lineHeight: 1.6 }}>
+                  <div style={{ marginBottom: '8px', padding: '10px 14px', background: 'rgba(0,196,180,0.06)', border: '1px solid rgba(0,196,180,0.25)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-soft)', lineHeight: 1.6 }}>
                     kithara.to encrypts lyrics client-side — they can&apos;t be auto-extracted.<br />
                     Go to the song page → select all text on the page (<strong>Ctrl+A</strong>) → copy (<strong>Ctrl+C</strong>) → paste below.
                   </div>
@@ -564,7 +564,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                       fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
                       textTransform: 'uppercase', cursor: saving ? 'wait' : 'pointer',
                       border: '1px solid var(--gold-border-mid)',
-                      background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+                      background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
                       color: saving ? 'var(--cream-muted)' : 'var(--gold-bright)',
                       transition: 'all 0.2s',
                       opacity: saving ? 0.6 : 1,

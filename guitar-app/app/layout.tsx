@@ -1,8 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+// Keep --font-cormorant alias pointing to Space Grotesk so all components update automatically
+const fontCormorantAlias = Space_Grotesk({
   variable: "--font-cormorant",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
@@ -34,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${cormorant.variable} ${ibmMono.variable} antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${fontCormorantAlias.variable} ${ibmMono.variable} antialiased`}>
         {children}
       </body>
     </html>

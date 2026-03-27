@@ -42,7 +42,7 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
       style={{ width: '100%', maxWidth: '420px', display: 'block', margin: '0 auto' }}
     >
       {/* Track arc — muted background */}
-      <path d={arc(arcStart, arcEnd)} fill="none" stroke="rgba(200,152,32,0.1)" strokeWidth="18" strokeLinecap="round" />
+      <path d={arc(arcStart, arcEnd)} fill="none" stroke="rgba(0,196,180,0.1)" strokeWidth="18" strokeLinecap="round" />
 
       {/* Flat zone */}
       <path d={arc(arcStart, greenS)} fill="none" stroke="rgba(68,136,204,0.18)" strokeWidth="18" />
@@ -67,7 +67,7 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
             key={c}
             x1={inner.x.toFixed(2)} y1={inner.y.toFixed(2)}
             x2={outer.x.toFixed(2)} y2={outer.y.toFixed(2)}
-            stroke={c === 0 ? 'rgba(80,232,128,0.5)' : 'rgba(200,152,32,0.28)'}
+            stroke={c === 0 ? 'rgba(80,232,128,0.5)' : 'rgba(0,196,180,0.28)'}
             strokeWidth={c === 0 ? 2 : 1.2}
           />
         );
@@ -83,7 +83,7 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
             key={c}
             x1={inner.x.toFixed(2)} y1={inner.y.toFixed(2)}
             x2={outer.x.toFixed(2)} y2={outer.y.toFixed(2)}
-            stroke="rgba(200,152,32,0.12)"
+            stroke="rgba(0,196,180,0.12)"
             strokeWidth="0.8"
           />
         );
@@ -268,7 +268,7 @@ export default function Tuner() {
 
   const noteGlow =
     status === 'tuned' ? '0 0 24px rgba(80,232,128,0.7), 0 0 60px rgba(80,232,128,0.3)' :
-    isListening        ? '0 0 20px rgba(200,152,32,0.25)' :
+    isListening        ? '0 0 20px rgba(0,196,180,0.25)' :
     'none';
 
   return (
@@ -278,7 +278,7 @@ export default function Tuner() {
         background: 'var(--bg-surface)',
         padding: 'clamp(28px, 5vw, 48px) clamp(24px, 4vw, 40px)',
         position: 'relative',
-        boxShadow: '0 12px 56px rgba(0,0,0,0.75), inset 0 1px 0 rgba(200,152,32,0.07)',
+        boxShadow: '0 12px 56px rgba(0,0,0,0.75), inset 0 1px 0 rgba(0,196,180,0.07)',
       }}>
         {/* Corner brackets */}
         {corners.map((s, i) => (
@@ -369,7 +369,7 @@ export default function Tuner() {
                 : '1px solid var(--gold-border-mid)',
               background: isListening
                 ? 'linear-gradient(135deg, rgba(224,72,72,0.12), rgba(224,72,72,0.06))'
-                : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+                : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
               color: isListening ? 'var(--red-tuning)' : 'var(--gold-bright)',
               cursor: 'pointer',
               transition: 'all 0.2s',

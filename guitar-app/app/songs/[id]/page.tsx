@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
+import Link from 'next/link';
 import { Song } from '@/types';
 import { loadSongs, updateSong, deleteSong } from '@/lib/storage';
 import ChordTooltip, { parseLyrics } from '@/components/ChordTooltip';
+import { transposeChords, getTransposeLabel } from '@/lib/transpose';
 
 // ── Shared style helpers ────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
@@ -74,7 +76,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
             fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
             cursor: 'pointer', border: 'none',
             borderRight: i === 0 ? '1px solid var(--gold-border)' : 'none',
-            background: value === lang ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+            background: value === lang ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
             color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
             transition: 'all 0.15s',
           }}
@@ -86,17 +88,98 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
   );
 }
 
+// ── Auto-scroll bar ─────────────────────────────────────────────────────────
+function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
+  const [playing, setPlaying]   = useState(false);
+  const [speed, setSpeed]       = useState(1.0); // px per frame at 60fps ≈ 60px/s
+  const rafRef = useRef<number | null>(null);
+
+  const scroll = useCallback(() => {
+    window.scrollBy(0, speed * 0.5);
+    rafRef.current = requestAnimationFrame(scroll);
+  }, [speed]);
+
+  useEffect(() => {
+    if (playing) {
+      rafRef.current = requestAnimationFrame(scroll);
+    } else {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    }
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [playing, scroll]);
+
+  if (!hasLyrics) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+      zIndex: 100,
+      background: 'rgba(6,6,6,0.92)',
+      border: '1px solid var(--gold-border-mid)',
+      backdropFilter: 'blur(12px)',
+      padding: '12px 20px',
+      display: 'flex', alignItems: 'center', gap: '16px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.06)',
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: '0.55rem', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
+        Auto-scroll
+      </span>
+
+      <button
+        onClick={() => setPlaying((p) => !p)}
+        style={{
+          width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
+          border: `1px solid ${playing ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
+          background: playing ? 'rgba(0,196,180,0.2)' : 'transparent',
+          color: playing ? 'var(--gold-bright)' : 'var(--cream-soft)',
+          fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.15s',
+        }}
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button
+          onClick={() => setSpeed((s) => Math.max(0.2, +(s - 0.2).toFixed(1)))}
+          style={scrollNudge}
+        >−</button>
+        <span style={{ fontSize: '0.75rem', color: 'var(--cream-soft)', minWidth: '28px', textAlign: 'center' }}>
+          {speed.toFixed(1)}×
+        </span>
+        <button
+          onClick={() => setSpeed((s) => Math.min(5, +(s + 0.2).toFixed(1)))}
+          style={scrollNudge}
+        >+</button>
+      </div>
+    </div>
+  );
+}
+
+const scrollNudge: React.CSSProperties = {
+  width: '28px', height: '28px', cursor: 'pointer',
+  border: '1px solid var(--gold-border)',
+  background: 'transparent', color: 'var(--cream-muted)',
+  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.15s',
+};
+
 // ── Page component ──────────────────────────────────────────────────────────
 export default function SongPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
 
-  const [song,     setSong]     = useState<Song | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const [edited,   setEdited]   = useState({
+  const [song,            setSong]            = useState<Song | null>(null);
+  const [loading,         setLoading]         = useState(true);
+  const [editMode,        setEditMode]        = useState(false);
+  const [transposeOffset, setTransposeOffset] = useState(0);
+  const [localBpm,        setLocalBpm]        = useState<number | undefined>(undefined);
+  const [savingBpm,       setSavingBpm]       = useState(false);
+  const [edited, setEdited] = useState({
     title: '', artist: '', chords: '', lyrics: '', notes: '',
     language: 'english' as 'greek' | 'english',
+    bpm: '' as string,
   });
 
   useEffect(() => {
@@ -104,11 +187,13 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
       const found = songs.find((s) => s.id === id) ?? null;
       setSong(found);
       if (found) {
+        setLocalBpm(found.bpm);
         setEdited({
           title: found.title, artist: found.artist,
           chords: found.chords.join(', '),
           lyrics: found.lyrics ?? '', notes: found.notes ?? '',
           language: found.language,
+          bpm: found.bpm != null ? String(found.bpm) : '',
         });
       }
       setLoading(false);
@@ -117,16 +202,19 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
 
   const handleSave = async () => {
     if (!song || !edited.title || !edited.artist) { alert('Title and artist are required.'); return; }
+    const bpmVal = edited.bpm ? parseInt(edited.bpm, 10) : undefined;
     const updated: Song = {
       ...song,
       title: edited.title, artist: edited.artist,
       chords: edited.chords.split(',').map((c) => c.trim()).filter(Boolean),
       lyrics: edited.lyrics || undefined, notes: edited.notes || undefined,
       language: edited.language,
+      bpm: Number.isFinite(bpmVal) ? bpmVal : undefined,
     };
     try {
       await updateSong(song.id, updated);
       setSong(updated);
+      setLocalBpm(updated.bpm);
       setEditMode(false);
     } catch { alert('Failed to save. Please try again.'); }
   };
@@ -137,6 +225,28 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
       await deleteSong(song.id);
       router.push('/');
     } catch { alert('Failed to delete.'); }
+  };
+
+  const handleSaveTransposed = async () => {
+    if (!song || transposeOffset === 0) return;
+    const newChords = transposeChords(song.chords, transposeOffset);
+    const updated = { ...song, chords: newChords };
+    try {
+      await updateSong(song.id, updated);
+      setSong(updated);
+      setTransposeOffset(0);
+    } catch { alert('Failed to save transposed chords.'); }
+  };
+
+  const handleSaveBpm = async (bpm: number | undefined) => {
+    if (!song) return;
+    setSavingBpm(true);
+    try {
+      await updateSong(song.id, { ...song, bpm });
+      setSong({ ...song, bpm });
+      setLocalBpm(bpm);
+    } catch { alert('Failed to save BPM.'); }
+    setSavingBpm(false);
   };
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -175,9 +285,15 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     );
   }
 
+  const displayChords = transposeOffset !== 0
+    ? transposeChords(song.chords, transposeOffset)
+    : song.chords;
+
+  const transposeLabel = getTransposeLabel(transposeOffset);
+
   // ── Full page view / edit ──────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)', paddingBottom: '80px' }}>
       {/* ── Top bar ── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -188,10 +304,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         gap: '16px', height: '60px',
       }}>
         {/* Back button */}
-        <button
-          onClick={() => router.push('/songs')}
-          style={backBtnStyle}
-        >
+        <button onClick={() => router.push('/songs')} style={backBtnStyle}>
           ← My Songs
         </button>
 
@@ -229,6 +342,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             <div><label style={labelStyle}>Title *</label><VintageInput value={edited.title} onChange={(e) => setEdited({ ...edited, title: e.target.value })} /></div>
             <div><label style={labelStyle}>Artist *</label><VintageInput value={edited.artist} onChange={(e) => setEdited({ ...edited, artist: e.target.value })} /></div>
             <div><label style={labelStyle}>Chords</label><VintageInput value={edited.chords} placeholder="Am, F, Dm, Em" onChange={(e) => setEdited({ ...edited, chords: e.target.value })} /></div>
+            <div><label style={labelStyle}>BPM</label><VintageInput type="number" min={40} max={240} value={edited.bpm} placeholder="e.g. 120" onChange={(e) => setEdited({ ...edited, bpm: e.target.value })} /></div>
             <div><label style={labelStyle}>Language</label><LangToggle value={edited.language} onChange={(v) => setEdited({ ...edited, language: v })} /></div>
             <div><label style={labelStyle}>Notes</label><VintageInput value={edited.notes} onChange={(e) => setEdited({ ...edited, notes: e.target.value })} /></div>
             <div><label style={labelStyle}>Lyrics</label><VintageTextarea value={edited.lyrics} onChange={(e) => setEdited({ ...edited, lyrics: e.target.value })} /></div>
@@ -253,7 +367,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 fontSize: 'clamp(2.2rem, 4vw, 3.5rem)',
                 fontWeight: 600, letterSpacing: '0.03em',
                 color: 'var(--gold-bright)', margin: '0 0 10px',
-                textShadow: '0 0 60px rgba(232,192,64,0.15)',
+                textShadow: '0 0 60px rgba(0,232,213,0.15)',
                 lineHeight: 1.1,
               }}>
                 {song.title}
@@ -275,18 +389,85 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 marginBottom: '28px',
               }} />
 
-              {/* Chords */}
+              {/* BPM section */}
+              <section style={{ marginBottom: '28px' }}>
+                <div style={labelStyle}>BPM</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    fontSize: '2rem', fontWeight: 700, color: 'var(--gold-bright)',
+                    fontVariantNumeric: 'tabular-nums', minWidth: '56px',
+                  }}>
+                    {localBpm ?? '—'}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <button
+                      onClick={() => {
+                        const next = Math.min(240, (localBpm ?? 119) + 1);
+                        setLocalBpm(next);
+                        handleSaveBpm(next);
+                      }}
+                      style={nudgeSm}
+                    >＋</button>
+                    <button
+                      onClick={() => {
+                        const next = Math.max(40, (localBpm ?? 121) - 1);
+                        setLocalBpm(next);
+                        handleSaveBpm(next);
+                      }}
+                      style={nudgeSm}
+                    >－</button>
+                  </div>
+                  <Link
+                    href={`/metronome${localBpm ? `?bpm=${localBpm}` : ''}`}
+                    style={{
+                      padding: '6px 12px', fontSize: '0.65rem', letterSpacing: '0.2em',
+                      textTransform: 'uppercase', textDecoration: 'none',
+                      border: '1px solid var(--gold-border)',
+                      color: 'var(--cream-muted)', transition: 'all 0.15s',
+                      display: 'inline-flex', alignItems: 'center',
+                      opacity: savingBpm ? 0.5 : 1,
+                    }}
+                  >
+                    ♩ Metronome
+                  </Link>
+                </div>
+              </section>
+
+              {/* Chords + Transpose */}
               {song.chords.length > 0 && (
                 <section style={{ marginBottom: '28px' }}>
-                  <div style={labelStyle}>Chords</div>
+                  {/* Transpose controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <div style={labelStyle}>Chords</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button onClick={() => setTransposeOffset((o) => o - 1)} style={transBtn}>−</button>
+                      <span style={{
+                        fontSize: '0.7rem', minWidth: '36px', textAlign: 'center',
+                        color: transposeOffset !== 0 ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                        letterSpacing: '0.1em',
+                      }}>
+                        {transposeLabel}
+                      </span>
+                      <button onClick={() => setTransposeOffset((o) => o + 1)} style={transBtn}>+</button>
+                      {transposeOffset !== 0 && (
+                        <button
+                          onClick={() => setTransposeOffset(0)}
+                          style={{ ...transBtn, fontSize: '0.6rem', padding: '0 6px', letterSpacing: '0.1em' }}
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {song.chords.map((chord, idx) => (
+                    {displayChords.map((chord, idx) => (
                       <ChordTooltip key={idx} name={chord}>
                         <span style={{
                           display: 'inline-block',
                           padding: '8px 16px',
                           border: '1px solid var(--gold-border-mid)',
-                          background: 'rgba(200,152,32,0.1)',
+                          background: 'rgba(0,196,180,0.1)',
                           fontFamily: 'var(--font-cormorant, Georgia, serif)',
                           fontSize: '1.1rem', fontWeight: 600,
                           color: 'var(--gold-bright)', letterSpacing: '0.06em',
@@ -299,6 +480,23 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                       </ChordTooltip>
                     ))}
                   </div>
+
+                  {/* Save transposed */}
+                  {transposeOffset !== 0 && (
+                    <button
+                      onClick={handleSaveTransposed}
+                      style={{
+                        marginTop: '12px',
+                        padding: '8px 16px', fontSize: '0.7rem', letterSpacing: '0.2em',
+                        textTransform: 'uppercase', cursor: 'pointer',
+                        border: '1px solid var(--gold-border-mid)',
+                        background: 'rgba(0,196,180,0.1)', color: 'var(--gold-bright)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      Save transposed chords
+                    </button>
+                  )}
                 </section>
               )}
 
@@ -338,15 +536,20 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                   }}>
                     {parseLyrics(song.lyrics).map((seg, i) =>
                       seg.type === 'chord' ? (
-                        <ChordTooltip key={i} name={seg.content}>
+                        <ChordTooltip key={i} name={transposeOffset !== 0
+                          ? transposeChords([seg.content], transposeOffset)[0]
+                          : seg.content
+                        }>
                           <span style={{
                             color: 'var(--gold-bright)',
                             fontWeight: 600,
                             cursor: 'default',
-                            borderBottom: '1px dashed rgba(200,152,32,0.45)',
+                            borderBottom: '1px dashed rgba(0,196,180,0.45)',
                             paddingBottom: '1px',
                           }}>
-                            {seg.content}
+                            {transposeOffset !== 0
+                              ? transposeChords([seg.content], transposeOffset)[0]
+                              : seg.content}
                           </span>
                         </ChordTooltip>
                       ) : (
@@ -373,6 +576,9 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
       </div>
+
+      {/* Auto-scroll floating bar */}
+      {!editMode && <AutoScrollBar hasLyrics={!!song.lyrics} />}
     </div>
   );
 }
@@ -390,6 +596,22 @@ const backBtnStyle: React.CSSProperties = {
   minHeight: '44px', whiteSpace: 'nowrap' as const,
 };
 
+const transBtn: React.CSSProperties = {
+  width: '28px', height: '28px', cursor: 'pointer',
+  border: '1px solid var(--gold-border)',
+  background: 'transparent', color: 'var(--cream-muted)',
+  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.15s',
+};
+
+const nudgeSm: React.CSSProperties = {
+  width: '24px', height: '24px', cursor: 'pointer',
+  border: '1px solid var(--gold-border)',
+  background: 'transparent', color: 'var(--cream-muted)',
+  fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.15s',
+};
+
 function ActionBtn({ onClick, children, gold, danger }: {
   onClick: () => void; children: React.ReactNode; gold?: boolean; danger?: boolean;
 }) {
@@ -405,7 +627,7 @@ function ActionBtn({ onClick, children, gold, danger }: {
                : gold  ? '1px solid var(--gold-border-mid)'
                :         '1px solid var(--gold-border)',
         background: danger ? 'rgba(224,72,72,0.08)'
-                  : gold   ? 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))'
+                  : gold   ? 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))'
                   :          'transparent',
         color: danger ? 'var(--red-tuning)' : gold ? 'var(--gold-bright)' : 'var(--cream-muted)',
         transition: 'all 0.15s',

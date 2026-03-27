@@ -65,7 +65,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
             fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
             cursor: 'pointer', border: 'none',
             borderRight: i === 0 ? '1px solid var(--gold-border)' : 'none',
-            background: value === lang ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+            background: value === lang ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
             color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
             transition: 'all 0.15s',
           }}
@@ -89,7 +89,7 @@ function PrimaryBtn({ onClick, children, danger = false }: { onClick: () => void
         border: danger ? '1px solid rgba(224,72,72,0.45)' : '1px solid var(--gold-border-mid)',
         background: danger
           ? 'linear-gradient(135deg, rgba(224,72,72,0.12), rgba(224,72,72,0.06))'
-          : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+          : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
         color: danger ? 'var(--red-tuning)' : 'var(--gold-bright)',
         transition: 'all 0.18s', whiteSpace: 'nowrap' as const,
       }}
@@ -249,7 +249,7 @@ export default function SongsLibrary() {
                   cursor: 'pointer', border: 'none',
                   borderRight: i < 2 ? '1px solid var(--gold-border)' : 'none',
                   transition: 'all 0.15s',
-                  background: isActive ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+                  background: isActive ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
                   color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
                   fontWeight: isActive ? 600 : 400,
                   minHeight: '44px',
@@ -367,7 +367,7 @@ function SongCard({ song, onClick, onDelete }: { song: Song; onClick: () => void
               style={{
                 padding: '2px 10px',
                 border: '1px solid var(--gold-border-mid)',
-                background: 'rgba(200,152,32,0.08)',
+                background: 'rgba(0,196,180,0.08)',
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: '0.85rem', fontWeight: 600,
                 color: 'var(--gold)', letterSpacing: '0.04em',

@@ -1,12 +1,18 @@
 import Link from 'next/link';
-import PlaylistsLibrary from '@/components/PlaylistsLibrary';
+import Metronome from '@/components/Metronome';
 
-export const metadata = { title: 'Playlists — Guitar Companion' };
+export const metadata = { title: 'Metronome — Guitar Companion' };
 
-export default function PlaylistsPage() {
+export default async function MetronomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bpm?: string }>;
+}) {
+  const { bpm: bpmStr } = await searchParams;
+  const initialBpm = bpmStr ? Math.min(240, Math.max(40, parseInt(bpmStr, 10) || 120)) : 120;
+
   return (
     <main style={{ minHeight: '100vh' }}>
-      {/* Header */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%)',
@@ -16,8 +22,7 @@ export default function PlaylistsPage() {
         height: '60px',
       }}>
         <Link href="/" style={{
-          padding: '8px 18px',
-          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          padding: '8px 18px', minHeight: '44px',
           fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
           textTransform: 'uppercase', cursor: 'pointer',
           border: '1px solid var(--gold-border-mid)',
@@ -28,17 +33,18 @@ export default function PlaylistsPage() {
           ← Home
         </Link>
         <span style={{
-          fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '0.65rem', letterSpacing: '0.45em',
           textTransform: 'uppercase', color: 'var(--gold-dim)',
         }}>
-          ♪ Playlists
+          ♩ Metronome
         </span>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: 'clamp(32px, 5vw, 64px) clamp(16px, 4vw, 48px)' }}>
-        <PlaylistsLibrary />
+      <div style={{
+        maxWidth: '680px', margin: '0 auto',
+        padding: 'clamp(48px, 8vw, 96px) clamp(20px, 4vw, 48px)',
+      }}>
+        <Metronome initialBpm={initialBpm} />
       </div>
     </main>
   );

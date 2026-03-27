@@ -82,7 +82,7 @@ export default function ChordsLibrary() {
             }}
             onFocus={(e) => {
               e.target.style.borderColor = 'var(--gold)';
-              e.target.style.boxShadow = '0 0 0 2px rgba(200,152,32,0.12)';
+              e.target.style.boxShadow = '0 0 0 2px rgba(0,196,180,0.12)';
             }}
             onBlur={(e) => {
               e.target.style.borderColor = 'var(--gold-border-mid)';
@@ -118,7 +118,7 @@ export default function ChordsLibrary() {
                 border: `1px solid ${isActive ? 'var(--gold)' : 'var(--gold-border)'}`,
                 transition: 'all 0.15s',
                 background: isActive
-                  ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))'
+                  ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))'
                   : 'transparent',
                 color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
                 minHeight: '44px',
@@ -175,7 +175,7 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-3px)' : 'none',
         boxShadow: hovered
-          ? '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,152,32,0.08)'
+          ? '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.08)'
           : '0 4px 16px rgba(0,0,0,0.4)',
         cursor: 'default',
       }}
@@ -188,7 +188,7 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
         color: 'var(--gold)',
         margin: 0,
         letterSpacing: '0.04em',
-        textShadow: hovered ? '0 0 20px rgba(200,152,32,0.25)' : 'none',
+        textShadow: hovered ? '0 0 20px rgba(0,196,180,0.25)' : 'none',
         transition: 'text-shadow 0.2s',
       }}>
         {chord.name}
@@ -210,17 +210,17 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
           border: '1px solid var(--gold-border-mid)',
-          background: 'linear-gradient(135deg, rgba(122,92,16,0.5), rgba(90,68,24,0.3))',
+          background: 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
           color: 'var(--gold-bright)',
           cursor: 'pointer',
           transition: 'all 0.15s',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(200,152,32,0.25), rgba(200,152,32,0.1))';
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,196,180,0.25), rgba(0,196,180,0.1))';
           e.currentTarget.style.borderColor = 'var(--gold)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(122,92,16,0.5), rgba(90,68,24,0.3))';
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))';
           e.currentTarget.style.borderColor = 'var(--gold-border-mid)';
         }}
       >
