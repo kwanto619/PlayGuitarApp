@@ -296,10 +296,10 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
         {/* Text */}
         <div>
           <div style={{
-            fontSize: '0.58rem',
-            letterSpacing: '0.45em',
+            fontSize: '0.68rem',
+            letterSpacing: '0.35em',
             textTransform: 'uppercase',
-            color: hovered ? 'var(--gold-dim)' : 'var(--cream-muted)',
+            color: hovered ? 'var(--gold)' : 'var(--cream-soft)',
             fontFamily: 'var(--font-cormorant, Georgia, serif)',
             marginBottom: '8px',
             transition: 'color 0.25s',

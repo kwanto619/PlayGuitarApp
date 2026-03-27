@@ -28,8 +28,8 @@ export default function SongsPage() {
 
         <span style={{
           fontFamily: 'var(--font-cormorant, Georgia, serif)',
-          fontSize: '0.65rem', letterSpacing: '0.45em',
-          textTransform: 'uppercase', color: 'var(--gold-dim)',
+          fontSize: '0.78rem', letterSpacing: '0.3em',
+          textTransform: 'uppercase', color: 'var(--cream-soft)',
         }}>
           ♪ My Songs
         </span>

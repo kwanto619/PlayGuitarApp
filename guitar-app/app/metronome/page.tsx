@@ -33,8 +33,8 @@ export default async function MetronomePage({
           ← Home
         </Link>
         <span style={{
-          fontSize: '0.65rem', letterSpacing: '0.45em',
-          textTransform: 'uppercase', color: 'var(--gold-dim)',
+          fontSize: '0.78rem', letterSpacing: '0.3em',
+          textTransform: 'uppercase', color: 'var(--cream-soft)',
         }}>
           ♩ Metronome
         </span>
