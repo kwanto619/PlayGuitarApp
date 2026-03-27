@@ -50,6 +50,9 @@ function GoldBtn({ children, onClick, disabled, variant = 'primary', style }: {
   );
 }
 
+// ── Open string frequencies (E A D G B e) ────────────────────────────────────
+const OPEN_FREQ = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
+
 // ── Metronome hook (inline) ───────────────────────────────────────────────────
 function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onBeat: (chordIdx: number) => void) {
   const audioCtxRef  = useRef<AudioContext | null>(null);
@@ -66,17 +69,26 @@ function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onB
   useEffect(() => { bpcRef.current = beatsPerChord; }, [beatsPerChord]);
   useEffect(() => { onBeatRef.current = onBeat; }, [onBeat]);
 
-  const scheduleClick = useCallback((time: number, accent: boolean) => {
+  const scheduleChord = useCallback((chordName: string, time: number) => {
     const ctx = audioCtxRef.current!;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'square';
-    osc.frequency.value = accent ? 1100 : 750;
-    gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(accent ? 0.4 : 0.25, time + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
-    osc.start(time); osc.stop(time + 0.06);
+    const chordData = chordLibrary.find((c) => c.name === chordName);
+    if (!chordData) return;
+    const duration = 2.0;
+    chordData.strings.forEach((fret, si) => {
+      if (fret === 'x') return;
+      const fretNum = fret === 'o' ? 0 : (fret as number);
+      const freq = OPEN_FREQ[si] * Math.pow(2, fretNum / 12);
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const t = time + si * 0.03; // strum delay per string
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.13, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      osc.start(t); osc.stop(t + duration);
+    });
   }, []);
 
   const tick = useCallback(() => {
@@ -85,7 +97,11 @@ function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onB
       const beat = beatCountRef.current;
       const chordIdx = Math.floor(beat / bpcRef.current) % Math.max(1, chordsRef.current.length);
       const beatInChord = beat % bpcRef.current;
-      scheduleClick(nextNoteRef.current, beatInChord === 0);
+
+      // Strum the chord on the first beat of each chord block
+      if (beatInChord === 0 && chordsRef.current.length > 0) {
+        scheduleChord(chordsRef.current[chordIdx], nextNoteRef.current);
+      }
 
       const delay = Math.max(0, (nextNoteRef.current - ctx.currentTime) * 1000);
       const ci = chordIdx;
@@ -94,7 +110,7 @@ function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onB
       beatCountRef.current++;
       nextNoteRef.current += 60 / bpmRef.current;
     }
-  }, [scheduleClick]);
+  }, [scheduleChord]);
 
   const start = useCallback(() => {
     if (!audioCtxRef.current) {
