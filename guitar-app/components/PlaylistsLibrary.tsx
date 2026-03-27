@@ -96,8 +96,8 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (na
     try {
       await onCreate(trimmed);
       onClose();
-    } catch {
-      setError('Failed to create playlist. Please try again.');
+    } catch (e) {
+      setError((e as Error).message || 'Failed to create playlist. Please try again.');
       setSaving(false);
     }
   };

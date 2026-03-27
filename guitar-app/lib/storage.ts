@@ -111,7 +111,7 @@ export const loadPlaylists = async (): Promise<Playlist[]> => {
 
 export const addPlaylist = async (name: string): Promise<Playlist[]> => {
   const { error } = await supabase.from('playlists').insert({ name, song_ids: [] });
-  if (error) { console.error('Error adding playlist:', error); throw new Error('Failed to add playlist'); }
+  if (error) { console.error('Error adding playlist:', error); throw new Error(error.message); }
   return loadPlaylists();
 };
 
