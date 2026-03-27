@@ -90,7 +90,7 @@ function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'sit
   }
 
   const chordSet = new Set<string>();
-  const chordRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
+  const chordRe = /sndType="[^"]*"[^>]*>([A-G][^<]{0,8})<\/a>/g;
   let cm: RegExpExecArray | null;
   while ((cm = chordRe.exec(html)) !== null) {
     const c = cm[1].trim().replace(/\s+/g, '');
@@ -464,7 +464,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
-          Import from kithara.to / tabsy.gr
+          Import from tabsy.gr
         </button>
       </div>
 
@@ -520,7 +520,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                 <Field label="Song URL">
                   <VInput
                     type="url"
-                    placeholder="https://kithara.to/…  or  https://tabsy.gr/kithara/sygxordies/…"
+                    placeholder="https://tabsy.gr/kithara/sygxordies/…"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleFetch()}
@@ -529,7 +529,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                 </Field>
 
                 <p style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
-                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>kithara.to</strong> or <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>. Title, artist, chords, and lyrics will be extracted automatically. You can review and edit everything before saving.
+                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>. Title, artist, chords, and lyrics will be extracted automatically. You can review and edit everything before saving.
                 </p>
 
                 {error && (
