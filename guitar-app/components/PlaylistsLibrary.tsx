@@ -405,7 +405,7 @@ function PlaylistDetail({
           border: '1px dashed var(--gold-border)', lineHeight: 1.7,
         }}>
           No songs in this playlist yet.<br />
-          <span style={{ fontSize: '0.95rem' }}>Hit "Add Songs" to get started.</span>
+          <span style={{ fontSize: '0.95rem' }}>Hit &ldquo;Add Songs&rdquo; to get started.</span>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import PlaylistsLibrary from '@/components/PlaylistsLibrary';
 
 export const metadata = { title: 'Playlists — Guitar Companion' };
@@ -13,14 +14,14 @@ export default function PlaylistsPage() {
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <a href="/" style={{
+          <Link href="/" style={{
             fontFamily: 'var(--font-cormorant, Georgia, serif)',
             fontSize: '0.75rem', letterSpacing: '0.3em', textTransform: 'uppercase',
             color: 'var(--cream-muted)', textDecoration: 'none',
             padding: '8px 0', minHeight: '44px', display: 'flex', alignItems: 'center',
           }}>
-            ← Home
-          </a>
+            &larr; Home
+          </Link>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '0.55rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)', marginBottom: '4px' }}>
               Your Sets

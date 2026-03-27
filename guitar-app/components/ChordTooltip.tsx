@@ -68,7 +68,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
   const handleClick = (e: React.MouseEvent) => {
     if (!isTouch) return;
     e.stopPropagation();
-    pos ? setPos(null) : getPos();
+    if (pos) { setPos(null); } else { getPos(); }
   };
 
   // Tooltip dimensions — slightly wider on small screens
