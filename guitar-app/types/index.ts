@@ -15,3 +15,9 @@ export interface Song {
   notes?: string;
   language: 'greek' | 'english';
 }
+
+export interface Playlist {
+  id: string;
+  name: string;
+  song_ids: string[];
+}

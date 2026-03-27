@@ -1,4 +1,4 @@
-import { Song } from '@/types';
+import { Song, Playlist } from '@/types';
 import { supabase } from './supabase';
 
 export const loadSongs = async (): Promise<Song[]> => {
@@ -88,6 +88,50 @@ export const exportSongs = async (): Promise<void> => {
   link.click();
   URL.revokeObjectURL(url);
 };
+
+// ── Playlists ─────────────────────────────────────────────────────────────────
+
+export const loadPlaylists = async (): Promise<Playlist[]> => {
+  const { data, error } = await supabase
+    .from('playlists')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error loading playlists:', error);
+    return [];
+  }
+
+  return data.map((p) => ({
+    id: p.id,
+    name: p.name,
+    song_ids: p.song_ids ?? [],
+  }));
+};
+
+export const addPlaylist = async (name: string): Promise<Playlist[]> => {
+  const { error } = await supabase.from('playlists').insert({ name, song_ids: [] });
+  if (error) { console.error('Error adding playlist:', error); throw new Error('Failed to add playlist'); }
+  return loadPlaylists();
+};
+
+export const renamePlaylist = async (id: string, name: string): Promise<void> => {
+  const { error } = await supabase.from('playlists').update({ name }).eq('id', id);
+  if (error) { console.error('Error renaming playlist:', error); throw new Error('Failed to rename playlist'); }
+};
+
+export const updatePlaylistSongs = async (id: string, song_ids: string[]): Promise<void> => {
+  const { error } = await supabase.from('playlists').update({ song_ids }).eq('id', id);
+  if (error) { console.error('Error updating playlist songs:', error); throw new Error('Failed to update playlist'); }
+};
+
+export const deletePlaylist = async (id: string): Promise<Playlist[]> => {
+  const { error } = await supabase.from('playlists').delete().eq('id', id);
+  if (error) { console.error('Error deleting playlist:', error); throw new Error('Failed to delete playlist'); }
+  return loadPlaylists();
+};
+
+// ── Song import ───────────────────────────────────────────────────────────────
 
 export const importSongs = async (file: File): Promise<Song[]> => {
   return new Promise((resolve, reject) => {

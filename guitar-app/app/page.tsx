@@ -117,6 +117,26 @@ function SongsIcon() {
   );
 }
 
+function PlaylistsIcon() {
+  // Ordered list with a small music note accent
+  return (
+    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
+      {/* List lines */}
+      <line x1="22" y1="20" x2="64" y2="20" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
+      <line x1="22" y1="36" x2="64" y2="36" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
+      <line x1="22" y1="52" x2="48" y2="52" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
+      {/* Bullet dots */}
+      <circle cx="12" cy="20" r="3.5" fill="currentColor" stroke="none" opacity="0.7" />
+      <circle cx="12" cy="36" r="3.5" fill="currentColor" stroke="none" opacity="0.7" />
+      <circle cx="12" cy="52" r="3.5" fill="currentColor" stroke="none" opacity="0.7" />
+      {/* Small note on last line */}
+      <ellipse cx="61" cy="57" rx="5.5" ry="4" transform="rotate(-18 61 57)" fill="currentColor" stroke="none" opacity="0.85" />
+      <line x1="65.2" y1="55.2" x2="65.2" y2="41" strokeWidth="2" strokeLinecap="round" />
+      <line x1="65.2" y1="41" x2="71" y2="43.5" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ── Card ─────────────────────────────────────────────────────────────────────
 const cards = [
   {
@@ -139,6 +159,13 @@ const cards = [
     subtitle:    'Your collection',
     description: 'Store lyrics, chords and notes for every song you play. Hover chords to see diagrams.',
     Icon:        SongsIcon,
+  },
+  {
+    href:        '/playlists',
+    label:       'Playlists',
+    subtitle:    'Sets & setlists',
+    description: 'Group songs into playlists for gigs, practice sessions, or any occasion.',
+    Icon:        PlaylistsIcon,
   },
 ] as const;
 
@@ -313,7 +340,7 @@ export default function Home() {
               textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)',
               marginTop: '8px',
             }}>
-              Tuner · Chords · Songs
+              Tuner · Chords · Songs · Playlists
             </div>
           </div>
         </div>
