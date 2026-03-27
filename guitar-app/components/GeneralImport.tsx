@@ -1,0 +1,678 @@
+'use client';
+
+import { useState } from 'react';
+import { addSong } from '@/lib/storage';
+import { Song } from '@/types';
+
+interface ParsedSong {
+  title: string;
+  artist: string;
+  chords: string[];
+  language: 'greek' | 'english';
+  lyrics: string;
+  lyricsSnippet: string;
+  lyricsBlocked: boolean;
+  siteBlocked: boolean;
+}
+
+type Site = 'kithara' | 'tabsy' | 'unknown';
+
+function detectSite(url: string): Site {
+  if (url.includes('kithara.to')) return 'kithara';
+  if (url.includes('tabsy.gr')) return 'tabsy';
+  return 'unknown';
+}
+
+// ── Shared HTML utilities ─────────────────────────────────────────────────────
+function stripHtml(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, '')
+    .replace(/&shy;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
+}
+
+function extractDivById(html: string, id: string): string | null {
+  let idx = html.indexOf(`id="${id}"`);
+  if (idx === -1) idx = html.indexOf(`id='${id}'`);
+  if (idx === -1) return null;
+  const divStart = html.lastIndexOf('<div', idx);
+  if (divStart === -1) return null;
+  const tagEnd = html.indexOf('>', divStart);
+  if (tagEnd === -1) return null;
+  const contentStart = tagEnd + 1;
+  let pos = contentStart;
+  let depth = 1;
+  while (depth > 0) {
+    const nextOpen  = html.indexOf('<div',  pos);
+    const nextClose = html.indexOf('</div', pos);
+    if (nextClose === -1) return null;
+    if (nextOpen !== -1 && nextOpen < nextClose) { depth++; pos = nextOpen + 4; }
+    else { depth--; if (depth === 0) return html.slice(contentStart, nextClose); pos = nextClose + 6; }
+  }
+  return null;
+}
+
+// ── kithara.to parser ─────────────────────────────────────────────────────────
+function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
+  let title = '';
+  let artist = '';
+  let language: 'greek' | 'english' = 'greek';
+
+  const titleM = html.match(/<h1[^>]*class="ti"[^>]*>([\s\S]*?)<\/h1>/);
+  if (titleM) title = stripHtml(titleM[1]);
+
+  const artistM = html.match(/<h2[^>]*class="ar"[^>]*>([\s\S]*?)<\/h2>/);
+  if (artistM) artist = stripHtml(artistM[1]);
+
+  const ldRe = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  let ldM: RegExpExecArray | null;
+  while ((ldM = ldRe.exec(html)) !== null) {
+    try {
+      const items = JSON.parse(ldM[1]);
+      const arr: Record<string, unknown>[] = Array.isArray(items) ? items : [items];
+      for (const item of arr) {
+        if (item['@type'] === 'MusicComposition') {
+          if (!title && item.name) title = stripHtml(String(item.name));
+          if (!artist) {
+            const rec = item.recordedAs as Record<string, unknown> | undefined;
+            const by = (rec?.byArtist as Record<string, unknown> | undefined);
+            if (by?.name) artist = stripHtml(String(by.name));
+          }
+          if (String(item.inLanguage ?? '').startsWith('en')) language = 'english';
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  const chordSet = new Set<string>();
+  const chordRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chordRe.exec(html)) !== null) {
+    const c = cm[1].trim().replace(/\s+/g, '');
+    if (c) chordSet.add(c);
+  }
+
+  let lyrics = '';
+  const textContent = extractDivById(html, 'text');
+  if (textContent) {
+    lyrics = textContent
+      .replace(/<a[^>]*class=["']clickPlay["'][^>]*>([^<]+)<\/a>/g, '[$1]')
+      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>\s*<a[^>]*>([^<]+)<\/a>\s*<\/span>/g, '[$2]')
+      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>([^<]+)<\/span>/g, '[$2]')
+      .replace(/<\/?(span|a|em|strong|b|i|u)[^>]*>/g, '')
+      .replace(/<\/p>\s*<p[^>]*>/g, '\n\n').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '\n\n')
+      .replace(/<\/div>\s*<div[^>]*>/g, '\n\n').replace(/<\/?div[^>]*>/g, '\n')
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+      .replace(/&shy;/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')
+      .split('\n').map((l) => l.trimEnd()).join('\n')
+      .replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  return { title, artist, chords: [...chordSet], language, lyrics, lyricsSnippet: '' };
+}
+
+// ── tabsy.gr parser ───────────────────────────────────────────────────────────
+const CHORD_TOKEN = /^[A-G][#b]?(m|maj|min|dim|aug|sus[24]?|add\d+|M)?\d*(\/[A-G][#b]?)?$/;
+
+function isChordLine(line: string): boolean {
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((t) => CHORD_TOKEN.test(t));
+}
+
+function extractChordsFromTab(content: string): string[] {
+  const chordSet = new Set<string>();
+  for (const line of content.split('\n')) {
+    if (isChordLine(line)) {
+      for (const token of line.trim().split(/\s+/)) {
+        if (token) chordSet.add(token);
+      }
+    }
+  }
+  return [...chordSet];
+}
+
+function findTabString(data: unknown, depth = 0): string {
+  if (depth > 8) return '';
+  if (typeof data === 'string' && data.length > 80) {
+    const hasSection = /\[(?:Εισαγωγή|Κουπλέ|Ρεφραίν|Intro|Verse|Chorus|Bridge)/.test(data);
+    const hasChordLine = data.split('\n').some((l) => isChordLine(l));
+    if (hasSection || hasChordLine) return data;
+  }
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findTabString(item, depth + 1);
+      if (found) return found;
+    }
+  }
+  if (data && typeof data === 'object') {
+    for (const value of Object.values(data as Record<string, unknown>)) {
+      const found = findTabString(value, depth + 1);
+      if (found) return found;
+    }
+  }
+  return '';
+}
+
+function parseTabsyHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
+  let title = '';
+  let artist = '';
+  let tabContent = '';
+
+  // Title from JSON-LD
+  const ldRe = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  let ldM: RegExpExecArray | null;
+  while ((ldM = ldRe.exec(html)) !== null) {
+    try {
+      const item = JSON.parse(ldM[1]);
+      if (!title && item.headline) title = stripHtml(String(item.headline));
+      if (!title && item.name) title = stripHtml(String(item.name));
+    } catch { /* skip */ }
+  }
+
+  // Title from og:title fallback
+  if (!title) {
+    const ogM = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i) ||
+                html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i);
+    if (ogM) title = stripHtml(ogM[1]);
+  }
+
+  // Artist from /kallitexnis/ link
+  const artistM = html.match(/href="\/kallitexnis\/[^"]*">([^<]+)<\/a>/);
+  if (artistM) artist = stripHtml(artistM[1]);
+
+  // Tab content from __NUXT_DATA__ JSON
+  const nuxtDataM =
+    html.match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i) ||
+    html.match(/<script[^>]*type="application\/json"[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+
+  if (nuxtDataM) {
+    try {
+      tabContent = findTabString(JSON.parse(nuxtDataM[1]));
+    } catch { /* skip */ }
+  }
+
+  // Fallback: search all script tags for JSON-encoded tab content
+  if (!tabContent) {
+    const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/g;
+    let sm: RegExpExecArray | null;
+    while ((sm = scriptRe.exec(html)) !== null) {
+      const m = sm[1].match(/"([^"]*\\n[^"]*\[(?:Εισαγωγή|Κουπλέ|Ρεφραίν|Intro|Verse|Chorus|Bridge)[^\]]*\][^"]{20,})"/);
+      if (m) {
+        tabContent = m[1].replace(/\\n/g, '\n').replace(/\\r/g, '').replace(/\\\\/g, '\\');
+        break;
+      }
+    }
+  }
+
+  return {
+    title,
+    artist,
+    chords: extractChordsFromTab(tabContent),
+    language: 'greek',
+    lyrics: tabContent.trim(),
+    lyricsSnippet: '',
+  };
+}
+
+// ── Shared UI primitives ──────────────────────────────────────────────────────
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '11px 16px',
+  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+  fontSize: '1.05rem',
+  background: 'var(--bg-input)',
+  border: '1px solid var(--gold-border-mid)',
+  color: 'var(--cream)',
+  outline: 'none',
+  boxSizing: 'border-box',
+  transition: 'border-color 0.2s',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.62rem',
+  letterSpacing: '0.4em',
+  textTransform: 'uppercase',
+  color: 'var(--gold-dim)',
+  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+  marginBottom: '6px',
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function VInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{ ...inputStyle, ...props.style }}
+      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; props.onFocus?.(e); }}
+      onBlur={(e)  => { e.target.style.borderColor = 'var(--gold-border-mid)'; props.onBlur?.(e); }}
+    />
+  );
+}
+
+function VTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      style={{
+        ...inputStyle,
+        minHeight: '180px',
+        resize: 'vertical',
+        fontFamily: 'var(--font-ibm-mono, monospace)',
+        fontSize: '0.9rem',
+        ...props.style,
+      }}
+      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; props.onFocus?.(e); }}
+      onBlur={(e)  => { e.target.style.borderColor = 'var(--gold-border-mid)'; props.onBlur?.(e); }}
+    />
+  );
+}
+
+function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange: (v: 'greek' | 'english') => void }) {
+  return (
+    <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
+      {(['greek', 'english'] as const).map((lang, i) => (
+        <button key={lang} type="button" onClick={() => onChange(lang)} style={{
+          flex: 1, padding: '10px 0',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+          cursor: 'pointer', border: 'none',
+          borderRight: i === 0 ? '1px solid var(--gold-border)' : 'none',
+          background: value === lang ? 'linear-gradient(135deg, rgba(200,152,32,0.2), rgba(200,152,32,0.08))' : 'transparent',
+          color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
+          transition: 'all 0.15s',
+        }}>
+          {lang === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function GeneralImport({ onImported }: { onImported: (song: Song) => void }) {
+  const [open,       setOpen]       = useState(false);
+  const [step,       setStep]       = useState<'url' | 'paste-html' | 'preview'>('url');
+  const [url,        setUrl]        = useState('');
+  const [site,       setSite]       = useState<Site>('unknown');
+  const [pastedHtml, setPastedHtml] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [lyricsBlocked, setLyricsBlocked] = useState(false);
+
+  const [form, setForm] = useState({
+    title: '', artist: '', chords: '', lyrics: '', notes: '',
+    language: 'greek' as 'greek' | 'english',
+  });
+
+  const reset = () => {
+    setOpen(false); setStep('url'); setUrl(''); setSite('unknown');
+    setPastedHtml(''); setError(''); setLoading(false); setSaving(false);
+    setLyricsBlocked(false);
+    setForm({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'greek' });
+  };
+
+  const applyParsed = (parsed: Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'>) => {
+    setForm({
+      title:    parsed.title,
+      artist:   parsed.artist,
+      chords:   parsed.chords.join(', '),
+      lyrics:   parsed.lyrics,
+      notes:    '',
+      language: parsed.language,
+    });
+  };
+
+  const handleFetch = async () => {
+    if (!url.trim()) { setError('Please enter a URL.'); return; }
+    const detectedSite = detectSite(url.trim());
+    setSite(detectedSite);
+    setLoading(true);
+    setError('');
+
+    try {
+      const target = url.trim();
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(target)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`,
+        `https://thingproxy.freeboard.io/fetch/${target}`,
+        `https://cors.eu.org/${target}`,
+      ];
+
+      const isValidHtml = (t: string) => {
+        if (detectedSite === 'kithara') return t.includes('kithara') || t.includes('class="ti"') || t.includes('id="text"');
+        if (detectedSite === 'tabsy')   return t.includes('tabsy') || t.includes('__NUXT') || t.includes('sygxordies');
+        return t.length > 1000;
+      };
+
+      let html = '';
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+          if (res.ok) {
+            const text = await res.text();
+            if (isValidHtml(text)) { html = text; break; }
+          }
+        } catch { /* try next */ }
+      }
+
+      if (!html) {
+        setError('All proxies failed or were rate-limited. Wait a moment and try again, or use the "Paste page source" fallback.');
+        return;
+      }
+
+      const parsed = detectedSite === 'tabsy' ? parseTabsyHtml(html) : parseKitharaHtml(html);
+      if (!parsed.title && !parsed.artist) {
+        setError('Could not extract song data. The URL may be incorrect or the site structure has changed.');
+        return;
+      }
+
+      applyParsed(parsed);
+      if (detectedSite === 'kithara') setLyricsBlocked(true);
+      setStep('preview');
+    } catch (e) {
+      setError('Failed to fetch: ' + (e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.title || !form.artist) { setError('Title and artist are required.'); return; }
+    setSaving(true); setError('');
+    try {
+      const updated = await addSong({
+        title:    form.title,
+        artist:   form.artist,
+        chords:   form.chords.split(',').map((c) => c.trim()).filter(Boolean),
+        lyrics:   form.lyrics   || undefined,
+        notes:    form.notes    || undefined,
+        language: form.language,
+      });
+      const newest = updated[0];
+      if (newest) onImported(newest);
+      reset();
+    } catch {
+      setError('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : 'the site';
+
+  return (
+    <>
+      {/* ── Trigger button ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            padding: '13px 32px',
+            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+            fontSize: '0.95rem', fontWeight: 600,
+            letterSpacing: '0.22em', textTransform: 'uppercase',
+            cursor: 'pointer', border: '1px solid var(--gold-border-mid)',
+            background: 'linear-gradient(135deg, rgba(200,152,32,0.18), rgba(200,152,32,0.06))',
+            color: 'var(--gold-bright)', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: '10px',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          Import from kithara.to / tabsy.gr
+        </button>
+      </div>
+
+      {/* ── Modal overlay ── */}
+      {open && (
+        <div
+          onClick={reset}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(8,5,2,0.88)', backdropFilter: 'blur(6px)',
+            zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative', background: 'var(--bg-surface)',
+              border: '1px solid var(--gold-border-mid)',
+              padding: 'clamp(24px, 4vw, 44px)',
+              width: '100%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.85)',
+            }}
+          >
+            {/* Corner brackets */}
+            {([
+              { top: 8, left: 8,    borderTop: '1px solid var(--gold-border-mid)', borderLeft:   '1px solid var(--gold-border-mid)' },
+              { top: 8, right: 8,   borderTop: '1px solid var(--gold-border-mid)', borderRight:  '1px solid var(--gold-border-mid)' },
+              { bottom: 8, left: 8,   borderBottom: '1px solid var(--gold-border-mid)', borderLeft:  '1px solid var(--gold-border-mid)' },
+              { bottom: 8, right: 8,  borderBottom: '1px solid var(--gold-border-mid)', borderRight: '1px solid var(--gold-border-mid)' },
+            ] as React.CSSProperties[]).map((s, i) => (
+              <div key={i} style={{ position: 'absolute', width: 18, height: 18, ...s }} />
+            ))}
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+              <div>
+                <div style={{ fontSize: '0.58rem', letterSpacing: '0.45em', color: 'var(--gold-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)', marginBottom: '6px' }}>
+                  {step === 'url' ? 'Step 1' : step === 'paste-html' ? 'Step 2 — Manual' : 'Step 2 of 2'}
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.8rem', fontWeight: 500, letterSpacing: '0.1em', color: 'var(--gold)', margin: 0 }}>
+                  {step === 'url' ? 'Import Song' : step === 'paste-html' ? 'Paste Page Source' : 'Review & Save'}
+                </h3>
+              </div>
+              <button onClick={reset} style={{ padding: '6px 10px', background: 'transparent', border: '1px solid var(--gold-border)', color: 'var(--cream-muted)', cursor: 'pointer', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.1rem' }}>✕</button>
+            </div>
+
+            <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--gold-border-mid), transparent)', marginBottom: '28px' }} />
+
+            {/* ── Step 1: URL input ── */}
+            {step === 'url' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <Field label="Song URL">
+                  <VInput
+                    type="url"
+                    placeholder="https://kithara.to/…  or  https://tabsy.gr/kithara/sygxordies/…"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleFetch()}
+                    autoFocus
+                  />
+                </Field>
+
+                <p style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
+                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>kithara.to</strong> or <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>. Title, artist, chords, and lyrics will be extracted automatically. You can review and edit everything before saving.
+                </p>
+
+                {error && (
+                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <span>{error}</span>
+                    <button
+                      onClick={() => { setError(''); setStep('paste-html'); }}
+                      style={{ alignSelf: 'flex-start', padding: '6px 14px', background: 'transparent', border: '1px solid rgba(224,72,72,0.5)', color: 'var(--red-tuning)', cursor: 'pointer', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.85rem', letterSpacing: '0.12em' }}
+                    >
+                      Use manual paste instead →
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleFetch}
+                  disabled={loading}
+                  style={{
+                    padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                    fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
+                    textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer',
+                    border: '1px solid var(--gold-border-mid)',
+                    background: loading ? 'transparent' : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+                    color: loading ? 'var(--cream-muted)' : 'var(--gold-bright)',
+                    transition: 'all 0.2s', opacity: loading ? 0.6 : 1,
+                  }}
+                >
+                  {loading ? 'Fetching…' : 'Fetch Song →'}
+                </button>
+              </div>
+            )}
+
+            {/* ── Step 2b: Paste HTML (site blocked) ── */}
+            {step === 'paste-html' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ padding: '14px 16px', border: '1px solid rgba(200,152,32,0.35)', background: 'rgba(200,152,32,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
+                  <strong style={{ color: 'var(--gold)' }}>{siteName} blocked the automated request.</strong><br />
+                  To import manually:<br />
+                  1. Open the song page in a new tab<br />
+                  2. Press <strong>Ctrl+U</strong> (or right-click → View Page Source)<br />
+                  3. Press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> to copy all<br />
+                  4. Paste it below and click Parse
+                </div>
+
+                <Field label="Paste page source here">
+                  <VTextarea
+                    placeholder="Paste the full HTML source of the song page…"
+                    value={pastedHtml}
+                    onChange={(e) => setPastedHtml(e.target.value)}
+                    style={{ minHeight: '200px', fontFamily: 'var(--font-ibm-mono, monospace)', fontSize: '0.8rem' }}
+                  />
+                </Field>
+
+                {error && (
+                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem' }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => {
+                      if (!pastedHtml.trim()) { setError('Please paste the page source first.'); return; }
+                      try {
+                        const detectedSite = detectSite(url);
+                        const parsed = detectedSite === 'tabsy' ? parseTabsyHtml(pastedHtml) : parseKitharaHtml(pastedHtml);
+                        if (!parsed.title && !parsed.artist) { setError('Could not parse the HTML. Make sure you copied the full page source.'); return; }
+                        applyParsed(parsed);
+                        if (detectedSite === 'kithara') setLyricsBlocked(true);
+                        setError('');
+                        setStep('preview');
+                      } catch {
+                        setError('Failed to parse the pasted HTML.');
+                      }
+                    }}
+                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
+                  >
+                    Parse →
+                  </button>
+                  <button onClick={() => { setStep('url'); setError(''); }} style={{ padding: '13px 24px', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.9rem', letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border)', background: 'transparent', color: 'var(--cream-muted)' }}>
+                    ← Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 2: Preview & edit ── */}
+            {step === 'preview' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <Field label="Title *">
+                  <VInput value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                </Field>
+
+                <Field label="Artist *">
+                  <VInput value={form.artist} onChange={(e) => setForm({ ...form, artist: e.target.value })} />
+                </Field>
+
+                <Field label="Chords (comma separated)">
+                  <VInput value={form.chords} onChange={(e) => setForm({ ...form, chords: e.target.value })} />
+                </Field>
+
+                <Field label="Language">
+                  <LangToggle value={form.language} onChange={(v) => setForm({ ...form, language: v })} />
+                </Field>
+
+                <Field label="Notes">
+                  <VInput
+                    placeholder="Optional notes about the song…"
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  />
+                </Field>
+
+                <Field label="Lyrics">
+                  {lyricsBlocked && site === 'kithara' && (
+                    <div style={{ marginBottom: '8px', padding: '10px 14px', background: 'rgba(200,152,32,0.06)', border: '1px solid rgba(200,152,32,0.25)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-soft)', lineHeight: 1.6 }}>
+                      kithara.to encrypts lyrics client-side — they can&apos;t be auto-extracted.<br />
+                      Go to the song page → select all (<strong>Ctrl+A</strong>) → copy (<strong>Ctrl+C</strong>) → paste below.
+                    </div>
+                  )}
+                  <VTextarea
+                    placeholder={site === 'kithara' ? 'Paste the lyrics here from the kithara.to page…' : 'Lyrics extracted from the tab…'}
+                    value={form.lyrics}
+                    onChange={(e) => setForm({ ...form, lyrics: e.target.value })}
+                    style={{ minHeight: '220px' }}
+                  />
+                </Field>
+
+                {error && (
+                  <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem' }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    style={{
+                      flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                      fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
+                      textTransform: 'uppercase', cursor: saving ? 'wait' : 'pointer',
+                      border: '1px solid var(--gold-border-mid)',
+                      background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(122,92,16,0.6), rgba(90,68,24,0.4))',
+                      color: saving ? 'var(--cream-muted)' : 'var(--gold-bright)',
+                      transition: 'all 0.2s', opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    {saving ? 'Saving…' : 'Save to Library'}
+                  </button>
+
+                  <button
+                    onClick={() => { setStep('url'); setError(''); }}
+                    style={{
+                      padding: '13px 24px', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                      fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
+                      textTransform: 'uppercase', cursor: 'pointer',
+                      border: '1px solid var(--gold-border)',
+                      background: 'transparent', color: 'var(--cream-muted)',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

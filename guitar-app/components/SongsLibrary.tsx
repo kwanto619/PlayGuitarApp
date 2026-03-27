@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Song } from '@/types';
 import { loadSongs, addSong, deleteSong, exportSongs, importSongs } from '@/lib/storage';
-import KitharaImport from './KitharaImport';
+import GeneralImport from './GeneralImport';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -162,7 +162,7 @@ export default function SongsLibrary() {
   return (
     <div>
       {/* ── Kithara import ── */}
-      <KitharaImport onImported={(song) => setSongs((prev) => [song, ...prev])} />
+      <GeneralImport onImported={(song) => setSongs((prev) => [song, ...prev])} />
 
       {/* ── Action bar ── */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '36px', flexWrap: 'wrap' }}>
