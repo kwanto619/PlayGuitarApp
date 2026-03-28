@@ -15,12 +15,13 @@ interface ParsedSong {
   siteBlocked: boolean;
 }
 
-type Site = 'kithara' | 'tabsy' | 'ug' | 'unknown';
+type Site = 'kithara' | 'tabsy' | 'ug' | 't4a' | 'unknown';
 
 function detectSite(url: string): Site {
   if (url.includes('kithara.to')) return 'kithara';
   if (url.includes('tabsy.gr')) return 'tabsy';
   if (url.includes('ultimate-guitar.com')) return 'ug';
+  if (url.includes('tabs4acoustic.com')) return 't4a';
   return 'unknown';
 }
 
@@ -247,6 +248,61 @@ function parseTabsyHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteB
   };
 }
 
+// ── tabs4acoustic.com parser ──────────────────────────────────────────────────
+function parseTabs4AcousticHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
+  // Chords are in img alt text: alt="Chord Am (x,0,2,2,1,0)"
+  const chordSet = new Set<string>();
+  const altRe = /alt="Chord\s+([A-G][^(\s"]{0,10})\s*\(/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = altRe.exec(html)) !== null) {
+    const c = cm[1].trim();
+    if (c) chordSet.add(c);
+  }
+
+  // Title & artist from breadcrumb anchors containing "/guitar-tabs/"
+  let title  = '';
+  let artist = '';
+  const crumbRe = /<a[^>]+href="[^"]*guitar-tabs[^"]*"[^>]*>([^<]+)<\/a>/g;
+  const crumbs: string[] = [];
+  let lm: RegExpExecArray | null;
+  while ((lm = crumbRe.exec(html)) !== null) crumbs.push(lm[1].trim());
+  if (crumbs.length >= 2) {
+    title  = crumbs[crumbs.length - 1].replace(/\s+tab$/i, '').trim();
+    artist = crumbs[crumbs.length - 2].replace(/\s+tabs?$/i, '').trim();
+  }
+  // Fallback: h2 "Simple Man tab"
+  if (!title) {
+    const h2M = html.match(/<h2[^>]*>([^<]+)<\/h2>/);
+    if (h2M) title = h2M[1].replace(/\s+tab$/i, '').trim();
+  }
+
+  // Content from <pre> blocks — replace chord img tags with chord name in brackets
+  const preRe = /<pre[^>]*>([\s\S]*?)<\/pre>/g;
+  const sections: string[] = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = preRe.exec(html)) !== null) {
+    const section = pm[1]
+      // Replace <a><img alt="Chord X (...)"></a> with [X]
+      .replace(/<a[^>]*>\s*<img[^>]+alt="Chord\s+([A-G][^(\s"]{0,10})[^"]*"[^>]*>\s*<\/a>/g, '[$1]')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ').replace(/&#039;/g, "'").replace(/&quot;/g, '"')
+      .split('\n').map((l) => l.trimEnd()).join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    if (section) sections.push(section);
+  }
+
+  return {
+    title,
+    artist,
+    chords: [...chordSet],
+    language: 'english',
+    lyrics: sections.join('\n\n'),
+    lyricsSnippet: '',
+  };
+}
+
 // ── ultimate-guitar.com parser ────────────────────────────────────────────────
 function parseUGHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
   // UG embeds all data as HTML-encoded JSON in <div class="js-store" data-content="...">
@@ -442,6 +498,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
         if (detectedSite === 'kithara') return t.includes('kithara') || t.includes('class="ti"') || t.includes('id="text"');
         if (detectedSite === 'tabsy')   return t.includes('tabsy') || t.includes('__NUXT') || t.includes('sygxordies');
         if (detectedSite === 'ug')      return t.includes('js-store') || t.includes('ultimate-guitar');
+        if (detectedSite === 't4a')     return t.includes('tabs4acoustic') || t.includes('T4A_TAB_ID');
         return t.length > 1000;
       };
 
@@ -467,7 +524,10 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
         return;
       }
 
-      const parsed = detectedSite === 'tabsy' ? parseTabsyHtml(html) : parseKitharaHtml(html);
+      const parsed =
+        detectedSite === 'tabsy' ? parseTabsyHtml(html) :
+        detectedSite === 't4a'   ? parseTabs4AcousticHtml(html) :
+        parseKitharaHtml(html);
       if (!parsed.title && !parsed.artist) {
         setError('Could not extract song data. The URL may be incorrect or the site structure has changed.');
         return;
@@ -505,7 +565,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
     }
   };
 
-  const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : site === 'ug' ? 'ultimate-guitar.com' : 'the site';
+  const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : site === 'ug' ? 'ultimate-guitar.com' : site === 't4a' ? 'tabs4acoustic.com' : 'the site';
 
   return (
     <>
@@ -593,7 +653,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                 </Field>
 
                 <p style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
-                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>, <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>kithara.to</strong>, or <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>ultimate-guitar.com</strong>. Title, artist, chords, and lyrics will be extracted automatically.
+                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>, <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>kithara.to</strong>, <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabs4acoustic.com</strong>, or <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>ultimate-guitar.com</strong>. Title, artist, chords, and lyrics will be extracted automatically.
                 </p>
 
                 <div style={{ padding: '12px 16px', border: '1px solid rgba(0,196,180,0.25)', background: 'rgba(0,196,180,0.05)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-muted)', lineHeight: 1.65 }}>
@@ -668,9 +728,10 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                       try {
                         const detectedSite = detectSite(url);
                         let parsed: Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'>;
-                        if (detectedSite === 'tabsy')   parsed = parseTabsyHtml(pastedHtml);
-                        else if (detectedSite === 'ug') parsed = parseUGHtml(pastedHtml);
-                        else                            parsed = parseKitharaHtml(pastedHtml);
+                        if (detectedSite === 'tabsy')        parsed = parseTabsyHtml(pastedHtml);
+                        else if (detectedSite === 'ug')      parsed = parseUGHtml(pastedHtml);
+                        else if (detectedSite === 't4a')     parsed = parseTabs4AcousticHtml(pastedHtml);
+                        else                                 parsed = parseKitharaHtml(pastedHtml);
                         if (!parsed.title && !parsed.artist) { setError('Could not parse the HTML. Make sure you copied the full page source.'); return; }
                         applyParsed(parsed);
                         if (detectedSite === 'kithara') setLyricsBlocked(true);
