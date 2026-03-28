@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, exportSongs, importSongs } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
 
 const labelStyle: React.CSSProperties = {
@@ -111,7 +111,10 @@ export default function SongsLibrary() {
   const [songs,          setSongs]          = useState<Song[]>([]);
   const [showAddForm,    setShowAddForm]    = useState(false);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>('all');
+  const [search,         setSearch]         = useState('');
+  const [page,           setPage]           = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const PAGE_SIZE = 15;
 
   const blankForm = { title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' as 'greek' | 'english' };
   const [newSong, setNewSong] = useState(blankForm);
@@ -157,7 +160,28 @@ export default function SongsLibrary() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const visibleSongs = songs.filter((s) => languageFilter === 'all' || s.language === languageFilter);
+  const filteredSongs = songs.filter((s) => {
+    if (languageFilter !== 'all' && s.language !== languageFilter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+    }
+    return true;
+  });
+  const totalPages  = Math.max(1, Math.ceil(filteredSongs.length / PAGE_SIZE));
+  const safePage    = Math.min(page, totalPages);
+  const visibleSongs = filteredSongs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const handleRating = async (songId: string, rating: number) => {
+    const song = songs.find((s) => s.id === songId);
+    if (!song) return;
+    // Toggle off if same star clicked again
+    const newRating = song.rating === rating ? undefined : rating;
+    try {
+      await updateSong(songId, { ...song, rating: newRating });
+      setSongs((prev) => prev.map((s) => s.id === songId ? { ...s, rating: newRating } : s));
+    } catch { /* silent */ }
+  };
 
   return (
     <div>
@@ -233,6 +257,34 @@ export default function SongsLibrary() {
         </div>
       )}
 
+      {/* ── Search bar ── */}
+      <div style={{ maxWidth: '520px', margin: '0 auto 24px', position: 'relative' }}>
+        <span style={{
+          position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
+        }}>
+          ⌕
+        </span>
+        <VintageInput
+          placeholder="Search by title or artist…"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{ paddingLeft: '38px', paddingRight: search ? '38px' : '16px' }}
+        />
+        {search && (
+          <button
+            onClick={() => { setSearch(''); setPage(1); }}
+            style={{
+              position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', color: 'var(--cream-muted)',
+              cursor: 'pointer', fontSize: '1rem', padding: '4px 6px', lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* ── Language filter ── */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
@@ -241,7 +293,7 @@ export default function SongsLibrary() {
             return (
               <button
                 key={val}
-                onClick={() => setLanguageFilter(val)}
+                onClick={() => { setLanguageFilter(val); setPage(1); }}
                 style={{
                   padding: '12px 20px',
                   fontFamily: 'var(--font-cormorant, Georgia, serif)',
@@ -272,19 +324,21 @@ export default function SongsLibrary() {
           {languageFilter === 'all' ? 'All Songs' : languageFilter === 'greek' ? 'Greek Songs' : 'English Songs'}
         </h3>
         <span style={{ fontSize: '0.8rem', letterSpacing: '0.2em', color: 'var(--cream-muted)', textTransform: 'uppercase' }}>
-          ({visibleSongs.length})
+          ({filteredSongs.length})
         </span>
       </div>
 
       {/* ── Song grid ── */}
-      {songs.length === 0 ? (
+      {visibleSongs.length === 0 ? (
         <div style={{
           border: '1px solid var(--gold-border)', background: 'var(--bg-surface)',
           padding: '48px 24px', textAlign: 'center',
           fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '1.3rem', color: 'var(--cream-muted)', letterSpacing: '0.05em',
         }}>
-          No songs yet. Add your first song above.
+          {songs.length === 0
+            ? 'No songs yet. Add your first song above.'
+            : `No songs match "${search}"`}
         </div>
       ) : (
         <div style={{
@@ -298,15 +352,99 @@ export default function SongsLibrary() {
               song={song}
               onClick={() => router.push(`/songs/${song.id}`)}
               onDelete={() => handleDeleteSong(song.id)}
+              onRate={(r) => handleRating(song.id, r)}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Pagination ── */}
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          gap: '12px', marginTop: '40px',
+        }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            style={paginationBtn(safePage === 1)}
+          >
+            ← Prev
+          </button>
+
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                style={{
+                  width: '36px', height: '36px', cursor: 'pointer',
+                  border: `1px solid ${p === safePage ? 'var(--gold)' : 'var(--gold-border)'}`,
+                  background: p === safePage ? 'rgba(0,196,180,0.15)' : 'transparent',
+                  color: p === safePage ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                  fontSize: '0.85rem', fontWeight: p === safePage ? 700 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            style={paginationBtn(safePage === totalPages)}
+          >
+            Next →
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function SongCard({ song, onClick, onDelete }: { song: Song; onClick: () => void; onDelete: () => void }) {
+const paginationBtn = (disabled: boolean): React.CSSProperties => ({
+  padding: '8px 18px', minHeight: '36px', cursor: disabled ? 'not-allowed' : 'pointer',
+  border: '1px solid var(--gold-border)',
+  background: 'transparent',
+  color: disabled ? 'var(--cream-muted)' : 'var(--cream-soft)',
+  fontSize: '0.85rem', letterSpacing: '0.1em',
+  opacity: disabled ? 0.4 : 1, transition: 'all 0.15s',
+});
+
+function StarRating({ value, onChange }: { value?: number; onChange: (r: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div
+      style={{ display: 'flex', gap: '2px' }}
+      onMouseLeave={() => setHovered(0)}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {[1, 2, 3, 4, 5].map((star) => {
+        const filled = star <= (hovered || value || 0);
+        return (
+          <span
+            key={star}
+            onMouseEnter={() => setHovered(star)}
+            onClick={() => onChange(star)}
+            style={{
+              fontSize: '1rem', cursor: 'pointer', lineHeight: 1,
+              color: filled ? '#f5a623' : 'var(--cream-muted)',
+              opacity: filled ? 1 : 0.35,
+              transition: 'color 0.1s, opacity 0.1s',
+              userSelect: 'none',
+            }}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function SongCard({ song, onClick, onDelete, onRate }: { song: Song; onClick: () => void; onDelete: () => void; onRate: (r: number) => void }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -354,10 +492,14 @@ function SongCard({ song, onClick, onDelete }: { song: Song; onClick: () => void
       <p style={{
         fontFamily: 'var(--font-cormorant, Georgia, serif)',
         fontSize: '1rem', fontStyle: 'italic',
-        color: 'var(--cream-muted)', margin: '0 0 12px',
+        color: 'var(--cream-muted)', margin: '0 0 10px',
       }}>
         {song.artist}
       </p>
+
+      <div style={{ marginBottom: '12px' }}>
+        <StarRating value={song.rating} onChange={onRate} />
+      </div>
 
       {song.chords.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: song.notes ? '10px' : 0 }}>

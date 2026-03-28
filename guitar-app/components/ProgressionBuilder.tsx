@@ -23,6 +23,16 @@ const SUFFIXES = [
 ];
 const BEATS_OPTIONS = [1, 2, 4];
 
+// ── Instrument types ──────────────────────────────────────────────────────────
+type InstrumentId = 'guitar' | 'piano' | 'organ' | 'electric' | 'bass';
+const INSTRUMENTS: { id: InstrumentId; label: string; icon: string }[] = [
+  { id: 'guitar',   label: 'Guitar',   icon: '🎸' },
+  { id: 'piano',    label: 'Piano',    icon: '🎹' },
+  { id: 'organ',    label: 'Organ',    icon: '🎷' },
+  { id: 'electric', label: 'Electric', icon: '⚡' },
+  { id: 'bass',     label: 'Bass',     icon: '🎵' },
+];
+
 // ── Shared style helpers ──────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
   fontSize: '0.62rem', letterSpacing: '0.4em', textTransform: 'uppercase',
@@ -53,54 +63,179 @@ function GoldBtn({ children, onClick, disabled, variant = 'primary', style }: {
 // ── Open string frequencies (E A D G B e) ────────────────────────────────────
 const OPEN_FREQ = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
 
-// ── Metronome hook (inline) ───────────────────────────────────────────────────
-function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onBeat: (chordIdx: number) => void) {
-  const audioCtxRef  = useRef<AudioContext | null>(null);
-  const nextNoteRef  = useRef(0);
-  const beatCountRef = useRef(0);
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bpmRef       = useRef(bpm);
-  const chordsRef    = useRef(chords);
-  const bpcRef       = useRef(beatsPerChord);
-  const onBeatRef    = useRef(onBeat);
+// ── Synthesis helpers ─────────────────────────────────────────────────────────
+function addSineHarmonic(
+  ctx: AudioContext, freq: number, gain: number,
+  start: number, duration: number, attack: number,
+) {
+  const osc = ctx.createOscillator();
+  const g   = ctx.createGain();
+  osc.connect(g); g.connect(ctx.destination);
+  osc.type = 'sine'; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(gain, start + attack);
+  g.gain.exponentialRampToValueAtTime(0.001, start + duration);
+  osc.start(start); osc.stop(start + duration);
+}
+
+function synthKick(ctx: AudioContext, time: number) {
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(40, time + 0.3);
+  gain.gain.setValueAtTime(0.8, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+  osc.start(time); osc.stop(time + 0.4);
+}
+
+function synthSnare(ctx: AudioContext, time: number) {
+  const bufLen = Math.floor(ctx.sampleRate * 0.2);
+  const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data   = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const src  = ctx.createBufferSource(); src.buffer = buf;
+  const hp   = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1000;
+  const gain = ctx.createGain();
+  src.connect(hp); hp.connect(gain); gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.4, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+  src.start(time); src.stop(time + 0.2);
+}
+
+function synthHihat(ctx: AudioContext, time: number) {
+  const bufLen = Math.floor(ctx.sampleRate * 0.05);
+  const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data   = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const src  = ctx.createBufferSource(); src.buffer = buf;
+  const hp   = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+  const gain = ctx.createGain();
+  src.connect(hp); hp.connect(gain); gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.12, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  src.start(time); src.stop(time + 0.05);
+}
+
+// ── Loop player hook ──────────────────────────────────────────────────────────
+function useLoopPlayer(
+  bpm: number, chords: string[], beatsPerChord: number,
+  onBeat: (chordIdx: number) => void,
+  instrument: InstrumentId, drums: boolean,
+) {
+  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const nextNoteRef   = useRef(0);
+  const beatCountRef  = useRef(0);
+  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bpmRef        = useRef(bpm);
+  const chordsRef     = useRef(chords);
+  const bpcRef        = useRef(beatsPerChord);
+  const onBeatRef     = useRef(onBeat);
+  const instrumentRef = useRef(instrument);
+  const drumsRef      = useRef(drums);
 
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { chordsRef.current = chords; }, [chords]);
   useEffect(() => { bpcRef.current = beatsPerChord; }, [beatsPerChord]);
   useEffect(() => { onBeatRef.current = onBeat; }, [onBeat]);
+  useEffect(() => { instrumentRef.current = instrument; }, [instrument]);
+  useEffect(() => { drumsRef.current = drums; }, [drums]);
 
   const scheduleChord = useCallback((chordName: string, time: number) => {
-    const ctx = audioCtxRef.current!;
+    const ctx  = audioCtxRef.current!;
+    const inst = instrumentRef.current;
     const chordData = chordLibrary.find((c) => c.name === chordName);
     if (!chordData) return;
-    const duration = 2.0;
+
+    // Bass: only root (lowest non-muted string), one octave down
+    if (inst === 'bass') {
+      for (let si = 0; si < chordData.strings.length; si++) {
+        const fret = chordData.strings[si];
+        if (fret === 'x') continue;
+        const fretNum = fret === 'o' ? 0 : (fret as number);
+        const freq = OPEN_FREQ[si] * Math.pow(2, fretNum / 12) * 0.5;
+        addSineHarmonic(ctx, freq, 0.55, time, 3.0, 0.02);
+        addSineHarmonic(ctx, freq * 2, 0.12, time, 2.5, 0.02);
+        break;
+      }
+      return;
+    }
+
     chordData.strings.forEach((fret, si) => {
       if (fret === 'x') return;
       const fretNum = fret === 'o' ? 0 : (fret as number);
-      const freq = OPEN_FREQ[si] * Math.pow(2, fretNum / 12);
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const t = time + si * 0.03; // strum delay per string
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.13, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-      osc.start(t); osc.stop(t + duration);
+      const freq    = OPEN_FREQ[si] * Math.pow(2, fretNum / 12);
+
+      if (inst === 'guitar') {
+        const t   = time + si * 0.03;
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'triangle'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.13, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+        osc.start(t); osc.stop(t + 2.0);
+
+      } else if (inst === 'piano') {
+        const t = time + si * 0.008;
+        addSineHarmonic(ctx, freq,     0.10,  t, 1.8, 0.005);
+        addSineHarmonic(ctx, freq * 2, 0.04,  t, 1.2, 0.005);
+        addSineHarmonic(ctx, freq * 3, 0.015, t, 0.9, 0.005);
+
+      } else if (inst === 'organ') {
+        const dur = Math.max(0.3, (60 / bpmRef.current) * bpcRef.current * 0.9);
+        const harmonicGains = [0.06, 0.035, 0.018, 0.009];
+        [1, 2, 3, 4].forEach((h, hi) => {
+          const osc = ctx.createOscillator(); const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq * h;
+          g.gain.setValueAtTime(harmonicGains[hi], time);
+          g.gain.setValueAtTime(harmonicGains[hi], time + dur - 0.05);
+          g.gain.linearRampToValueAtTime(0, time + dur);
+          osc.start(time); osc.stop(time + dur);
+        });
+
+      } else if (inst === 'electric') {
+        const t    = time + si * 0.025;
+        const osc  = ctx.createOscillator();
+        const ws   = ctx.createWaveShaper();
+        const g    = ctx.createGain();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+          const x = (i * 2) / 256 - 1;
+          curve[i] = (Math.PI + 200) * x / (Math.PI + 200 * Math.abs(x));
+        }
+        ws.curve = curve;
+        osc.connect(ws); ws.connect(g); g.connect(ctx.destination);
+        osc.type = 'sawtooth'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.08, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
+        osc.start(t); osc.stop(t + 2.5);
+      }
     });
+  }, []);
+
+  const scheduleDrum = useCallback((beat: number, time: number) => {
+    const ctx = audioCtxRef.current!;
+    const beatInBar = beat % 4;
+    synthHihat(ctx, time);
+    if (beatInBar === 0 || beatInBar === 2) synthKick(ctx, time);
+    if (beatInBar === 1 || beatInBar === 3) synthSnare(ctx, time);
   }, []);
 
   const tick = useCallback(() => {
     const ctx = audioCtxRef.current!;
     while (nextNoteRef.current < ctx.currentTime + 0.1) {
-      const beat = beatCountRef.current;
-      const chordIdx = Math.floor(beat / bpcRef.current) % Math.max(1, chordsRef.current.length);
+      const beat        = beatCountRef.current;
+      const chordIdx    = Math.floor(beat / bpcRef.current) % Math.max(1, chordsRef.current.length);
       const beatInChord = beat % bpcRef.current;
 
-      // Strum the chord on the first beat of each chord block
       if (beatInChord === 0 && chordsRef.current.length > 0) {
         scheduleChord(chordsRef.current[chordIdx], nextNoteRef.current);
+      }
+      if (drumsRef.current) {
+        scheduleDrum(beat, nextNoteRef.current);
       }
 
       const delay = Math.max(0, (nextNoteRef.current - ctx.currentTime) * 1000);
@@ -110,7 +245,7 @@ function useLoopPlayer(bpm: number, chords: string[], beatsPerChord: number, onB
       beatCountRef.current++;
       nextNoteRef.current += 60 / bpmRef.current;
     }
-  }, [scheduleChord]);
+  }, [scheduleChord, scheduleDrum]);
 
   const start = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -177,18 +312,24 @@ function BuilderView({
   onBack: () => void;
 }) {
   const isNew = progression === null;
-  const [name,         setName]         = useState(progression?.name ?? '');
-  const [chords,       setChords]       = useState<string[]>(progression?.chords ?? []);
-  const [bpm,          setBpm]          = useState(progression?.bpm ?? 100);
-  const [selectedRoot, setSelectedRoot] = useState('A');
+  const [name,           setName]           = useState(progression?.name ?? '');
+  const [chords,         setChords]         = useState<string[]>(progression?.chords ?? []);
+  const [bpm,            setBpm]            = useState(progression?.bpm ?? 100);
+  const [selectedRoot,   setSelectedRoot]   = useState('A');
   const [selectedSuffix, setSelectedSuffix] = useState('m');
-  const [beatsPerChord, setBeatsPerChord] = useState(2);
-  const [isPlaying,    setIsPlaying]    = useState(false);
-  const [currentChord, setCurrentChord] = useState(-1);
-  const [saving,       setSaving]       = useState(false);
-  const [confirmDel,   setConfirmDel]   = useState(false);
+  const [beatsPerChord,  setBeatsPerChord]  = useState(2);
+  const [isPlaying,      setIsPlaying]      = useState(false);
+  const [currentChord,   setCurrentChord]   = useState(-1);
+  const [saving,         setSaving]         = useState(false);
+  const [confirmDel,     setConfirmDel]     = useState(false);
+  const [instrument,     setInstrument]     = useState<InstrumentId>('guitar');
+  const [drumsOn,        setDrumsOn]        = useState(false);
 
-  const { start, stop } = useLoopPlayer(bpm, chords, beatsPerChord, (idx) => setCurrentChord(idx));
+  const { start, stop } = useLoopPlayer(
+    bpm, chords, beatsPerChord,
+    (idx) => setCurrentChord(idx),
+    instrument, drumsOn,
+  );
 
   const handleTogglePlay = () => {
     if (chords.length === 0) return;
@@ -373,7 +514,7 @@ function BuilderView({
           ))}
         </div>
 
-        {/* Add button + preview */}
+        {/* Add button */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button
             onClick={handleAddChord}
@@ -393,7 +534,7 @@ function BuilderView({
       <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--gold-border-mid), transparent)', marginBottom: '24px' }} />
 
       {/* Playback controls */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px' }}>
         <button
           onClick={handleTogglePlay}
           disabled={chords.length === 0}
@@ -436,6 +577,42 @@ function BuilderView({
 
         <div style={{ fontSize: '0.8rem', color: 'var(--cream-muted)', letterSpacing: '0.1em' }}>
           {bpm} BPM · {getTempoName(bpm)}
+        </div>
+      </div>
+
+      {/* Instrument + drums selector */}
+      <div>
+        <label style={labelStyle}>Sound</label>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {INSTRUMENTS.map((inst) => (
+            <button
+              key={inst.id}
+              onClick={() => setInstrument(inst.id)}
+              style={{
+                padding: '8px 16px', minHeight: '40px',
+                fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${instrument === inst.id ? 'var(--gold)' : 'var(--gold-border)'}`,
+                background: instrument === inst.id ? 'rgba(0,196,180,0.12)' : 'transparent',
+                color: instrument === inst.id ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                transition: 'all 0.12s',
+              }}
+            >
+              {inst.icon} {inst.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setDrumsOn((d) => !d)}
+            style={{
+              padding: '8px 16px', minHeight: '40px',
+              fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${drumsOn ? 'var(--gold)' : 'var(--gold-border)'}`,
+              background: drumsOn ? 'rgba(0,196,180,0.12)' : 'transparent',
+              color: drumsOn ? 'var(--gold-bright)' : 'var(--cream-muted)',
+              transition: 'all 0.12s',
+            }}
+          >
+            🥁 Drums
+          </button>
         </div>
       </div>
     </div>

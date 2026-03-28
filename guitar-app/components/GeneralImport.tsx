@@ -15,11 +15,12 @@ interface ParsedSong {
   siteBlocked: boolean;
 }
 
-type Site = 'kithara' | 'tabsy' | 'unknown';
+type Site = 'kithara' | 'tabsy' | 'ug' | 'unknown';
 
 function detectSite(url: string): Site {
   if (url.includes('kithara.to')) return 'kithara';
   if (url.includes('tabsy.gr')) return 'tabsy';
+  if (url.includes('ultimate-guitar.com')) return 'ug';
   return 'unknown';
 }
 
@@ -246,6 +247,62 @@ function parseTabsyHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteB
   };
 }
 
+// ── ultimate-guitar.com parser ────────────────────────────────────────────────
+function parseUGHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'> {
+  // UG embeds all data as HTML-encoded JSON in <div class="js-store" data-content="...">
+  const storeM = html.match(/class="js-store"\s+data-content="([^"]+)"/);
+  if (!storeM) throw new Error('Could not find UG store data. Make sure you copied the full page source.');
+
+  const jsonStr = storeM[1]
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(jsonStr);
+  } catch {
+    throw new Error('Failed to parse UG page data.');
+  }
+
+  const tab     = (data as Record<string, unknown> & { store?: { page?: { data?: { tab?: Record<string, unknown>; tab_view?: Record<string, unknown> } } } })?.store?.page?.data?.tab ?? {};
+  const tabView = (data as Record<string, unknown> & { store?: { page?: { data?: { tab_view?: { wiki_tab?: { content?: string } } } } } })?.store?.page?.data?.tab_view;
+
+  const title  = String(tab.song_name   ?? '');
+  const artist = String(tab.artist_name ?? '');
+
+  // Content is in tab_view.wiki_tab.content (preferred) or tab.content
+  const rawContent = String(tabView?.wiki_tab?.content ?? tab.content ?? '');
+
+  // Extract unique chords from [ch]...[/ch] markers
+  const chordSet = new Set<string>();
+  const chordRe  = /\[ch\]([^\[]+)\[\/ch\]/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chordRe.exec(rawContent)) !== null) {
+    const c = cm[1].trim();
+    if (c) chordSet.add(c);
+  }
+
+  // Convert UG markup to plain text
+  const lyrics = rawContent
+    .replace(/\[tab\]/g, '').replace(/\[\/tab\]/g, '')
+    .replace(/\[ch\]([^\[]+)\[\/ch\]/g, '$1')
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return {
+    title,
+    artist,
+    chords: [...chordSet],
+    language: 'english',
+    lyrics,
+    lyricsSnippet: '',
+  };
+}
+
 // ── Shared UI primitives ──────────────────────────────────────────────────────
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -384,8 +441,15 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
       const isValidHtml = (t: string) => {
         if (detectedSite === 'kithara') return t.includes('kithara') || t.includes('class="ti"') || t.includes('id="text"');
         if (detectedSite === 'tabsy')   return t.includes('tabsy') || t.includes('__NUXT') || t.includes('sygxordies');
+        if (detectedSite === 'ug')      return t.includes('js-store') || t.includes('ultimate-guitar');
         return t.length > 1000;
       };
+
+      // UG uses Cloudflare — skip proxies and go straight to paste fallback
+      if (detectedSite === 'ug') {
+        setStep('paste-html');
+        return;
+      }
 
       let html = '';
       for (const proxyUrl of proxies) {
@@ -441,7 +505,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
     }
   };
 
-  const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : 'the site';
+  const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : site === 'ug' ? 'ultimate-guitar.com' : 'the site';
 
   return (
     <>
@@ -464,7 +528,7 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
-          Import from tabsy.gr
+          Import from Tabs
         </button>
       </div>
 
@@ -529,8 +593,13 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                 </Field>
 
                 <p style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
-                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>. Title, artist, chords, and lyrics will be extracted automatically. You can review and edit everything before saving.
+                  Paste a song URL from <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>tabsy.gr</strong>, <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>kithara.to</strong>, or <strong style={{ color: 'var(--cream-soft)', fontStyle: 'normal' }}>ultimate-guitar.com</strong>. Title, artist, chords, and lyrics will be extracted automatically.
                 </p>
+
+                <div style={{ padding: '12px 16px', border: '1px solid rgba(0,196,180,0.25)', background: 'rgba(0,196,180,0.05)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-muted)', lineHeight: 1.65 }}>
+                  <strong style={{ color: 'var(--gold-dim)', fontStyle: 'normal' }}>Ultimate Guitar note:</strong> UG is Cloudflare-protected, so you&apos;ll need to paste the page source manually.<br />
+                  Paste the URL → click Fetch → follow the instructions in the next step.
+                </div>
 
                 {error && (
                   <div style={{ padding: '12px 16px', border: '1px solid rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -566,12 +635,15 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
             {step === 'paste-html' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ padding: '14px 16px', border: '1px solid rgba(0,196,180,0.35)', background: 'rgba(0,196,180,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
-                  <strong style={{ color: 'var(--gold)' }}>{siteName} blocked the automated request.</strong><br />
-                  To import manually:<br />
-                  1. Open the song page in a new tab<br />
+                  <strong style={{ color: 'var(--gold)' }}>{siteName} requires manual import.</strong><br />
+                  To import:<br />
+                  1. Open the song page in your browser<br />
                   2. Press <strong>Ctrl+U</strong> (or right-click → View Page Source)<br />
                   3. Press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> to copy all<br />
                   4. Paste it below and click Parse
+                  {site === 'ug' && (
+                    <><br /><br /><em style={{ color: 'var(--gold-dim)' }}>Tip: make sure you are on a &ldquo;Chords&rdquo; tab page, not a Guitar Pro or Tab page.</em></>
+                  )}
                 </div>
 
                 <Field label="Paste page source here">
@@ -595,14 +667,17 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
                       if (!pastedHtml.trim()) { setError('Please paste the page source first.'); return; }
                       try {
                         const detectedSite = detectSite(url);
-                        const parsed = detectedSite === 'tabsy' ? parseTabsyHtml(pastedHtml) : parseKitharaHtml(pastedHtml);
+                        let parsed: Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'>;
+                        if (detectedSite === 'tabsy')   parsed = parseTabsyHtml(pastedHtml);
+                        else if (detectedSite === 'ug') parsed = parseUGHtml(pastedHtml);
+                        else                            parsed = parseKitharaHtml(pastedHtml);
                         if (!parsed.title && !parsed.artist) { setError('Could not parse the HTML. Make sure you copied the full page source.'); return; }
                         applyParsed(parsed);
                         if (detectedSite === 'kithara') setLyricsBlocked(true);
                         setError('');
                         setStep('preview');
-                      } catch {
-                        setError('Failed to parse the pasted HTML.');
+                      } catch (e) {
+                        setError((e as Error).message || 'Failed to parse the pasted HTML.');
                       }
                     }}
                     style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}

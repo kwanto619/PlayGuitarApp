@@ -15,6 +15,7 @@ export interface Song {
   notes?: string;
   language: 'greek' | 'english';
   bpm?: number;
+  rating?: number; // 1–5
 }
 
 export interface Playlist {

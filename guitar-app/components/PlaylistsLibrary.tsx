@@ -284,9 +284,16 @@ function PlaylistDetail({
   const [showPicker, setShowPicker]   = useState(false);
   const [confirmDel, setConfirmDel]   = useState(false);
   const [saving, setSaving]           = useState(false);
+  const [search, setSearch]           = useState('');
 
   const songMap = new Map(songs.map((s) => [s.id, s]));
   const playlistSongs = songIds.map((id) => songMap.get(id)).filter(Boolean) as Song[];
+  const visibleSongs = search.trim()
+    ? playlistSongs.filter((s) => {
+        const q = search.trim().toLowerCase();
+        return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+      })
+    : playlistSongs;
 
   const persistIds = useCallback(async (ids: string[]) => {
     setSongIds(ids);
@@ -389,11 +396,39 @@ function PlaylistDetail({
 
       <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--gold-border-mid), transparent)', marginBottom: '28px' }} />
 
-      {/* Add songs button */}
-      <div style={{ marginBottom: '24px' }}>
+      {/* Add songs button + search */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
         <GoldBtn onClick={() => setShowPicker(true)}>
           + Add Songs
         </GoldBtn>
+        {playlistSongs.length > 0 && (
+          <div style={{ flex: 1, minWidth: '200px', maxWidth: '360px', position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
+            }}>
+              ⌕
+            </span>
+            <GoldInput
+              placeholder="Search songs…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ paddingLeft: '38px', paddingRight: search ? '38px' : '16px' }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{
+                  position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', color: 'var(--cream-muted)',
+                  cursor: 'pointer', fontSize: '1rem', padding: '4px 6px', lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Song list */}
@@ -407,9 +442,17 @@ function PlaylistDetail({
           No songs in this playlist yet.<br />
           <span style={{ fontSize: '0.95rem' }}>Hit &ldquo;Add Songs&rdquo; to get started.</span>
         </div>
+      ) : visibleSongs.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '40px 20px',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.1rem', fontStyle: 'italic', color: 'var(--cream-muted)',
+        }}>
+          No songs match &ldquo;{search}&rdquo;
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {playlistSongs.map((song, idx) => (
+          {visibleSongs.map((song, idx) => (
             <div
               key={song.id}
               style={{
@@ -548,6 +591,7 @@ export default function PlaylistsLibrary() {
   const [activePlaylist,  setActivePlaylist]  = useState<Playlist | null>(null);
   const [showCreate,      setShowCreate]      = useState(false);
   const [loading,         setLoading]         = useState(true);
+  const [search,          setSearch]          = useState('');
 
   useEffect(() => {
     Promise.all([loadPlaylists(), loadSongs()]).then(([pl, sg]) => {
@@ -600,14 +644,48 @@ export default function PlaylistsLibrary() {
   }
 
   // ── List view ──
+  const visiblePlaylists = search.trim()
+    ? playlists.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : playlists;
+
   return (
     <>
       {/* New playlist button */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
         <GoldBtn onClick={() => setShowCreate(true)} style={{ padding: '13px 40px' }}>
           + New Playlist
         </GoldBtn>
       </div>
+
+      {/* Search bar */}
+      {playlists.length > 0 && (
+        <div style={{ maxWidth: '520px', margin: '0 auto 32px', position: 'relative' }}>
+          <span style={{
+            position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
+          }}>
+            ⌕
+          </span>
+          <GoldInput
+            placeholder="Search playlists…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: '38px', paddingRight: search ? '38px' : '16px' }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                background: 'transparent', border: 'none', color: 'var(--cream-muted)',
+                cursor: 'pointer', fontSize: '1rem', padding: '4px 6px', lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {playlists.length === 0 ? (
         <div style={{
@@ -619,13 +697,21 @@ export default function PlaylistsLibrary() {
           No playlists yet.<br />
           <span style={{ fontSize: '1rem' }}>Create one to organise your songs.</span>
         </div>
+      ) : visiblePlaylists.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '48px 20px',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.2rem', fontStyle: 'italic', color: 'var(--cream-muted)',
+        }}>
+          No playlists match &ldquo;{search}&rdquo;
+        </div>
       ) : (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: '20px',
         }}>
-          {playlists.map((pl) => (
+          {visiblePlaylists.map((pl) => (
             <PlaylistCard
               key={pl.id}
               playlist={pl}

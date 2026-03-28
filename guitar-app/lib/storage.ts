@@ -21,6 +21,7 @@ export const loadSongs = async (): Promise<Song[]> => {
     notes: song.notes || undefined,
     language: song.language as 'greek' | 'english',
     bpm: song.bpm ?? undefined,
+    rating: song.rating ?? undefined,
   }));
 };
 
@@ -67,6 +68,7 @@ export const updateSong = async (id: string, updatedSong: Partial<Song>): Promis
       notes: updatedSong.notes || null,
       language: updatedSong.language,
       bpm: updatedSong.bpm ?? null,
+      rating: updatedSong.rating ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);

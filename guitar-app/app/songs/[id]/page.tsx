@@ -90,17 +90,29 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
 
 // ── Auto-scroll bar ─────────────────────────────────────────────────────────
 function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
-  const [playing, setPlaying]   = useState(false);
-  const [speed, setSpeed]       = useState(1.0); // px per frame at 60fps ≈ 60px/s
-  const rafRef = useRef<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed]     = useState(1.0);
+  const speedRef  = useRef(speed);
+  const accumRef  = useRef(0);   // fractional pixel accumulator
+  const rafRef    = useRef<number | null>(null);
+
+  // Keep ref in sync so the RAF loop always sees the latest speed
+  useEffect(() => { speedRef.current = speed; }, [speed]);
 
   const scroll = useCallback(() => {
-    window.scrollBy(0, speed * 0.5);
+    // Accumulate fractional pixels — avoids sub-pixel rounding to 0
+    accumRef.current += speedRef.current * 0.6;
+    const px = Math.floor(accumRef.current);
+    if (px > 0) {
+      window.scrollBy(0, px);
+      accumRef.current -= px;
+    }
     rafRef.current = requestAnimationFrame(scroll);
-  }, [speed]);
+  }, []); // stable — reads speed via ref, never re-creates
 
   useEffect(() => {
     if (playing) {
+      accumRef.current = 0;
       rafRef.current = requestAnimationFrame(scroll);
     } else {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -377,10 +389,37 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
               <p style={{
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: 'clamp(1.1rem, 2vw, 1.35rem)',
-                fontStyle: 'italic', color: 'var(--cream-soft)', margin: '0 0 32px',
+                fontStyle: 'italic', color: 'var(--cream-soft)', margin: '0 0 16px',
               }}>
                 {song.artist}
               </p>
+
+              {/* Star rating */}
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '28px' }}>
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const filled = star <= (song.rating ?? 0);
+                  return (
+                    <span
+                      key={star}
+                      onClick={async () => {
+                        const newRating = song.rating === star ? undefined : star;
+                        const updated = { ...song, rating: newRating };
+                        await updateSong(song.id, updated);
+                        setSong(updated);
+                      }}
+                      style={{
+                        fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1,
+                        color: filled ? '#f5a623' : 'var(--cream-muted)',
+                        opacity: filled ? 1 : 0.3,
+                        transition: 'color 0.12s, opacity 0.12s',
+                        userSelect: 'none',
+                      }}
+                    >
+                      ★
+                    </span>
+                  );
+                })}
+              </div>
 
               {/* Divider */}
               <div style={{

@@ -71,10 +71,11 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
     if (pos) { setPos(null); } else { getPos(); }
   };
 
-  // Tooltip dimensions — slightly wider on small screens
-  const TOOLTIP_W = Math.min(200, window.innerWidth - 24);
+  // Tooltip dimensions — clamped to viewport width
+  const TOOLTIP_W = Math.min(200, (typeof window !== 'undefined' ? window.innerWidth : 400) - 24);
   const TOOLTIP_H = 270;
   const GAP = 10;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
 
   const tooltipStyle: React.CSSProperties | null = pos
     ? {
@@ -84,7 +85,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
           : pos.top + GAP + 24,
         left: Math.min(
           Math.max(pos.left - TOOLTIP_W / 2, 8),
-          window.innerWidth - TOOLTIP_W - 8,
+          vw - TOOLTIP_W - 8,
         ),
         width: TOOLTIP_W,
         zIndex: 9990,
@@ -98,7 +99,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
     <>
       <span
         ref={triggerRef}
-        style={{ display: 'inline-block' }}
+        style={{ display: 'inline' }}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
         onClick={handleClick}
