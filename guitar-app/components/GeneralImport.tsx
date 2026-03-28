@@ -282,11 +282,17 @@ function parseTabs4AcousticHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' 
     if (artistLinkM) artist = artistLinkM[1].replace(/\s+tabs?$/i, '').trim();
   }
 
-  // Content from <pre> blocks — replace chord img tags with chord name in brackets
+  // Content from <pre> blocks — skip guitar tab notation (e|---|) blocks, keep chord+lyric blocks
   const preRe = /<pre[^>]*>([\s\S]*?)<\/pre>/g;
   const sections: string[] = [];
   let pm: RegExpExecArray | null;
   while ((pm = preRe.exec(html)) !== null) {
+    const rawText = pm[1].replace(/<[^>]+>/g, '');
+    const lines   = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+    // Detect guitar tab notation: lines starting with string names like e| B| G| D| A| E|
+    const tabLines = lines.filter((l) => /^[eEbBgGdDaA]\s*\|/.test(l));
+    if (tabLines.length >= 2) continue; // skip — this is a guitar tab block
+
     const section = pm[1]
       // Replace <a><img alt="Chord X (...)"></a> with [X]
       .replace(/<a[^>]*>\s*<img[^>]+alt="Chord\s+([A-G][^(\s"]{0,10})[^"]*"[^>]*>\s*<\/a>/g, '[$1]')
