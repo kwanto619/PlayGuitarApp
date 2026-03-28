@@ -259,21 +259,27 @@ function parseTabs4AcousticHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' 
     if (c) chordSet.add(c);
   }
 
-  // Title & artist from breadcrumb anchors containing "/guitar-tabs/"
+  // Title & artist from <title> tag: "Simple Man Guitar Tab, Lynyrd Skynyrd"
   let title  = '';
   let artist = '';
-  const crumbRe = /<a[^>]+href="[^"]*guitar-tabs[^"]*"[^>]*>([^<]+)<\/a>/g;
-  const crumbs: string[] = [];
-  let lm: RegExpExecArray | null;
-  while ((lm = crumbRe.exec(html)) !== null) crumbs.push(lm[1].trim());
-  if (crumbs.length >= 2) {
-    title  = crumbs[crumbs.length - 1].replace(/\s+tab$/i, '').trim();
-    artist = crumbs[crumbs.length - 2].replace(/\s+tabs?$/i, '').trim();
+  const titleTagM = html.match(/<title>([^<,]+?)\s+Guitar Tab[^,<]*,\s*([^<]+?)\s*<\/title>/i);
+  if (titleTagM) {
+    title  = titleTagM[1].trim();
+    artist = titleTagM[2].trim();
   }
-  // Fallback: h2 "Simple Man tab"
+  // Fallback: breadcrumb link whose href matches the song page pattern (contains "-tab-\d+")
+  if (!title) {
+    const songLinkM = html.match(/<a[^>]+href="[^"]*-tab-\d+\.html"[^>]*>([^<]+)<\/a>/i);
+    if (songLinkM) title = songLinkM[1].trim();
+  }
   if (!title) {
     const h2M = html.match(/<h2[^>]*>([^<]+)<\/h2>/);
     if (h2M) title = h2M[1].replace(/\s+tab$/i, '').trim();
+  }
+  // Fallback artist: breadcrumb link whose href matches artist tabs pattern (contains "-tabs-\d+")
+  if (!artist) {
+    const artistLinkM = html.match(/<a[^>]+href="[^"]*-tabs-\d+\.html"[^>]*>([^<]+)<\/a>/i);
+    if (artistLinkM) artist = artistLinkM[1].replace(/\s+tabs?$/i, '').trim();
   }
 
   // Content from <pre> blocks — replace chord img tags with chord name in brackets
