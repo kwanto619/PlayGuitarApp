@@ -124,12 +124,24 @@ export default function SongsLibrary() {
   const handleAddSong = async () => {
     if (!newSong.title || !newSong.artist) { alert('Title and artist are required!'); return; }
     try {
+      // Auto-search YouTube for the song
+      let youtubeVideoId: string | undefined;
+      try {
+        const q = encodeURIComponent(`${newSong.artist} ${newSong.title}`);
+        const res = await fetch(`/api/youtube-search?q=${q}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.videoId) youtubeVideoId = data.videoId;
+        }
+      } catch { /* YouTube search is best-effort */ }
+
       const updated = await addSong({
         title: newSong.title, artist: newSong.artist,
         chords: newSong.chords.split(',').map((c) => c.trim()).filter(Boolean),
         lyrics: newSong.lyrics || undefined,
         notes:  newSong.notes  || undefined,
         language: newSong.language,
+        youtubeVideoId,
       });
       setSongs(updated);
       setNewSong(blankForm);

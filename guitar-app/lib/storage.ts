@@ -22,6 +22,7 @@ export const loadSongs = async (): Promise<Song[]> => {
     language: song.language as 'greek' | 'english',
     bpm: song.bpm ?? undefined,
     rating: song.rating ?? undefined,
+    youtubeVideoId: song.youtube_video_id || undefined,
   }));
 };
 
@@ -33,6 +34,7 @@ export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
     lyrics: song.lyrics || null,
     notes: song.notes || null,
     language: song.language,
+    youtube_video_id: song.youtubeVideoId || null,
   });
 
   if (error) {
@@ -69,6 +71,7 @@ export const updateSong = async (id: string, updatedSong: Partial<Song>): Promis
       language: updatedSong.language,
       bpm: updatedSong.bpm ?? null,
       rating: updatedSong.rating ?? null,
+      youtube_video_id: updatedSong.youtubeVideoId ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);

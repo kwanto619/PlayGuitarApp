@@ -3,5 +3,9 @@
     "allow": [
       "WebFetch(domain:www.tabs4acoustic.com)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "claude-flow"
+  ],
+  "enableAllProjectMcpServers": true
 }

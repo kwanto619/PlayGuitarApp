@@ -192,7 +192,51 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     title: '', artist: '', chords: '', lyrics: '', notes: '',
     language: 'english' as 'greek' | 'english',
     bpm: '' as string,
+    youtubeUrl: '' as string,
   });
+  const [showVideoUrlInput, setShowVideoUrlInput] = useState(false);
+  const [videoUrlDraft, setVideoUrlDraft] = useState('');
+  const [searchingVideo, setSearchingVideo] = useState(false);
+
+  const extractVideoId = (input: string): string | null => {
+    if (!input) return null;
+    // Already a plain video ID (11 chars)
+    if (/^[\w-]{11}$/.test(input)) return input;
+    // youtu.be/VIDEO_ID
+    const shortMatch = input.match(/youtu\.be\/([\w-]{11})/);
+    if (shortMatch) return shortMatch[1];
+    // youtube.com/watch?v=VIDEO_ID or youtube.com/embed/VIDEO_ID
+    const longMatch = input.match(/youtube\.com\/(?:watch\?.*v=|embed\/)([\w-]{11})/);
+    if (longMatch) return longMatch[1];
+    return null;
+  };
+
+  const searchYouTube = async (artist: string, title: string) => {
+    setSearchingVideo(true);
+    try {
+      const q = encodeURIComponent(`${artist} ${title}`);
+      const res = await fetch(`/api/youtube-search?q=${q}`);
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      if (data.videoId) {
+        const updated = { ...song!, youtubeVideoId: data.videoId };
+        await updateSong(song!.id, updated);
+        setSong(updated);
+      }
+    } catch {
+      alert('YouTube search failed. Try pasting a URL manually.');
+    }
+    setSearchingVideo(false);
+  };
+
+  const saveVideoId = async (videoId: string | undefined) => {
+    if (!song) return;
+    const updated = { ...song, youtubeVideoId: videoId };
+    await updateSong(song.id, updated);
+    setSong(updated);
+    setShowVideoUrlInput(false);
+    setVideoUrlDraft('');
+  };
 
   useEffect(() => {
     loadSongs().then((songs) => {
@@ -206,6 +250,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           lyrics: found.lyrics ?? '', notes: found.notes ?? '',
           language: found.language,
           bpm: found.bpm != null ? String(found.bpm) : '',
+          youtubeUrl: found.youtubeVideoId ?? '',
         });
       }
       setLoading(false);
@@ -222,6 +267,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
       lyrics: edited.lyrics || undefined, notes: edited.notes || undefined,
       language: edited.language,
       bpm: Number.isFinite(bpmVal) ? bpmVal : undefined,
+      youtubeVideoId: edited.youtubeUrl || undefined,
     };
     try {
       await updateSong(song.id, updated);
@@ -357,6 +403,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             <div><label style={labelStyle}>BPM</label><VintageInput type="number" min={40} max={240} value={edited.bpm} placeholder="e.g. 120" onChange={(e) => setEdited({ ...edited, bpm: e.target.value })} /></div>
             <div><label style={labelStyle}>Language</label><LangToggle value={edited.language} onChange={(v) => setEdited({ ...edited, language: v })} /></div>
             <div><label style={labelStyle}>Notes</label><VintageInput value={edited.notes} onChange={(e) => setEdited({ ...edited, notes: e.target.value })} /></div>
+            <div><label style={labelStyle}>YouTube Video ID or URL</label><VintageInput value={edited.youtubeUrl} placeholder="e.g. dQw4w9WgXcQ or paste YouTube URL" onChange={(e) => setEdited({ ...edited, youtubeUrl: e.target.value })} /></div>
             <div><label style={labelStyle}>Lyrics</label><VintageTextarea value={edited.lyrics} onChange={(e) => setEdited({ ...edited, lyrics: e.target.value })} /></div>
           </div>
         ) : (
@@ -420,6 +467,108 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                   );
                 })}
               </div>
+
+              {/* YouTube Player */}
+              <section style={{ marginBottom: '28px' }}>
+                {song.youtubeVideoId ? (
+                  <>
+                    <div style={{
+                      position: 'relative', width: '100%', paddingBottom: '56.25%',
+                      background: '#000', border: '1px solid var(--gold-border)',
+                      overflow: 'hidden',
+                    }}>
+                      <iframe
+                        src={`https://www.youtube.com/embed/${song.youtubeVideoId}`}
+                        title="YouTube video"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        style={{
+                          position: 'absolute', top: 0, left: 0,
+                          width: '100%', height: '100%', border: 'none',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => { setShowVideoUrlInput(true); setVideoUrlDraft(''); }}
+                        style={videoBtnStyle}
+                      >
+                        Change video
+                      </button>
+                      <button
+                        onClick={() => searchYouTube(song.artist, song.title)}
+                        disabled={searchingVideo}
+                        style={{ ...videoBtnStyle, opacity: searchingVideo ? 0.5 : 1 }}
+                      >
+                        {searchingVideo ? 'Searching...' : 'Auto-find'}
+                      </button>
+                      <button
+                        onClick={() => saveVideoId(undefined)}
+                        style={{ ...videoBtnStyle, color: 'var(--red-tuning)', borderColor: 'rgba(224,72,72,0.3)' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    border: '1px dashed var(--gold-border)',
+                    padding: '20px',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: '0.55rem', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginBottom: '12px' }}>
+                      YouTube Video
+                    </div>
+                    <button
+                      onClick={() => searchYouTube(song.artist, song.title)}
+                      disabled={searchingVideo}
+                      style={{
+                        ...videoBtnStyle,
+                        padding: '10px 20px',
+                        background: 'rgba(0,196,180,0.1)',
+                        opacity: searchingVideo ? 0.5 : 1,
+                      }}
+                    >
+                      {searchingVideo ? 'Searching...' : 'Find on YouTube'}
+                    </button>
+                    <button
+                      onClick={() => setShowVideoUrlInput(true)}
+                      style={{ ...videoBtnStyle, marginLeft: '8px', padding: '10px 20px' }}
+                    >
+                      Paste URL
+                    </button>
+                  </div>
+                )}
+
+                {showVideoUrlInput && (
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
+                    <input
+                      value={videoUrlDraft}
+                      onChange={(e) => setVideoUrlDraft(e.target.value)}
+                      placeholder="Paste YouTube URL..."
+                      style={{
+                        ...inputStyle, flex: 1, padding: '8px 12px', fontSize: '0.85rem',
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const vid = extractVideoId(videoUrlDraft);
+                        if (vid) saveVideoId(vid);
+                        else alert('Invalid YouTube URL');
+                      }}
+                      style={{ ...videoBtnStyle, padding: '8px 14px', background: 'rgba(0,196,180,0.1)' }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setShowVideoUrlInput(false); setVideoUrlDraft(''); }}
+                      style={videoBtnStyle}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </section>
 
               {/* Divider */}
               <div style={{
@@ -640,6 +789,16 @@ const transBtn: React.CSSProperties = {
   border: '1px solid var(--gold-border)',
   background: 'transparent', color: 'var(--cream-muted)',
   fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.15s',
+};
+
+const videoBtnStyle: React.CSSProperties = {
+  padding: '6px 12px',
+  fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+  cursor: 'pointer',
+  border: '1px solid var(--gold-border)',
+  background: 'transparent', color: 'var(--cream-muted)',
   transition: 'all 0.15s',
 };
 

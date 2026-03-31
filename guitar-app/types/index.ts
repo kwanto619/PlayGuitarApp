@@ -16,6 +16,7 @@ export interface Song {
   language: 'greek' | 'english';
   bpm?: number;
   rating?: number; // 1–5
+  youtubeVideoId?: string;
 }
 
 export interface Playlist {
