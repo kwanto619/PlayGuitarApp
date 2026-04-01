@@ -125,6 +125,13 @@ button, a, [role="button"], input, textarea, select, label {
   }
 }
 
+/* Lyrics pre: allow wrap on very long lines that have no chord alignment */
+@media (max-width: 640px) {
+  .lyrics-pre {
+    font-size: 0.78rem !important;
+  }
+}
+
 /* Minimum tap target size on touch screens */
 @media (hover: none) and (pointer: coarse) {
   .tap-target {

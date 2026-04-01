@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
 import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
@@ -108,11 +108,13 @@ const corners: React.CSSProperties[] = [
 
 export default function SongsLibrary() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [songs,          setSongs]          = useState<Song[]>([]);
   const [showAddForm,    setShowAddForm]    = useState(false);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>('all');
   const [search,         setSearch]         = useState('');
-  const [page,           setPage]           = useState(1);
+  const initialPage = parseInt(searchParams.get('page') || '1', 10);
+  const [page,           setPage]           = useState(initialPage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const PAGE_SIZE = 15;
 
@@ -362,7 +364,7 @@ export default function SongsLibrary() {
             <SongCard
               key={song.id}
               song={song}
-              onClick={() => router.push(`/songs/${song.id}`)}
+              onClick={() => router.push(`/songs/${song.id}?fromPage=${safePage}`)}
               onDelete={() => handleDeleteSong(song.id)}
               onRate={(r) => handleRating(song.id, r)}
             />

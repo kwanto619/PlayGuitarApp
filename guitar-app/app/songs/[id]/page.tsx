@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { use } from 'react';
 import Link from 'next/link';
 import { Song } from '@/types';
@@ -181,6 +181,11 @@ const scrollNudge: React.CSSProperties = {
 export default function SongPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromPlaylist = searchParams.get('from') === 'playlist';
+  const playlistId = searchParams.get('playlistId');
+  const playlistName = searchParams.get('playlistName');
+  const fromPage = searchParams.get('fromPage');
 
   const [song,            setSong]            = useState<Song | null>(null);
   const [loading,         setLoading]         = useState(true);
@@ -194,6 +199,8 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     bpm: '' as string,
     youtubeUrl: '' as string,
   });
+  const [lyricsFullscreen, setLyricsFullscreen] = useState(false);
+  const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
   const [showVideoUrlInput, setShowVideoUrlInput] = useState(false);
   const [videoUrlDraft, setVideoUrlDraft] = useState('');
   const [searchingVideo, setSearchingVideo] = useState(false);
@@ -362,9 +369,15 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         gap: '16px', height: '60px',
       }}>
         {/* Back button */}
-        <button onClick={() => router.push('/songs')} style={backBtnStyle}>
-          ← My Songs
-        </button>
+        {fromPlaylist && playlistId ? (
+          <button onClick={() => router.push(`/playlists?active=${playlistId}`)} style={backBtnStyle}>
+            ← {playlistName ? decodeURIComponent(playlistName) : 'Playlist'}
+          </button>
+        ) : (
+          <button onClick={() => router.push(fromPage ? `/songs?page=${fromPage}` : '/songs')} style={backBtnStyle}>
+            ← My Songs
+          </button>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -710,17 +723,34 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             <div>
               {song.lyrics ? (
                 <>
-                  <div style={labelStyle}>Lyrics</div>
-                  <pre style={{
-                    whiteSpace: 'pre-wrap',
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={labelStyle}>Lyrics</div>
+                    <button
+                      onClick={() => setLyricsFullscreen(true)}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+                        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                        cursor: 'pointer',
+                        border: '1px solid var(--gold-border)',
+                        background: 'transparent', color: 'var(--cream-muted)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      Expand
+                    </button>
+                  </div>
+                  <pre className="lyrics-pre" style={{
+                    whiteSpace: 'pre',
                     fontFamily: 'var(--font-ibm-mono, monospace)',
-                    fontSize: 'clamp(0.88rem, 1.4vw, 1rem)',
+                    fontSize: 'clamp(0.78rem, 1.4vw, 1rem)',
                     color: 'var(--cream-soft)',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--gold-border)',
-                    padding: 'clamp(20px, 3vw, 36px)',
+                    padding: 'clamp(16px, 3vw, 36px)',
                     margin: 0, lineHeight: 1.9,
                     overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
                   }}>
                     {parseLyrics(song.lyrics).map((seg, i) =>
                       seg.type === 'chord' ? (
@@ -764,6 +794,106 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
       </div>
+
+      {/* Fullscreen lyrics overlay */}
+      {lyricsFullscreen && song.lyrics && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(6,6,6,0.96)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          {/* Top bar */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--gold-border)',
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{
+                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                fontSize: '1.1rem', color: 'var(--gold-bright)', fontWeight: 600,
+              }}>
+                {song.title}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                fontSize: '0.9rem', color: 'var(--cream-muted)', fontStyle: 'italic',
+              }}>
+                {song.artist}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.55rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
+                Size
+              </span>
+              <button
+                onClick={() => setFullscreenFontSize((s) => Math.max(0.6, +(s - 0.1).toFixed(1)))}
+                style={scrollNudge}
+              >−</button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--cream-soft)', minWidth: '32px', textAlign: 'center' }}>
+                {fullscreenFontSize.toFixed(1)}
+              </span>
+              <button
+                onClick={() => setFullscreenFontSize((s) => Math.min(2.5, +(s + 0.1).toFixed(1)))}
+                style={scrollNudge}
+              >+</button>
+              <button
+                onClick={() => setLyricsFullscreen(false)}
+                style={{
+                  marginLeft: '12px',
+                  padding: '8px 18px',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                  fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  border: '1px solid var(--gold-border-mid)',
+                  background: 'transparent', color: 'var(--cream-muted)',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Lyrics content */}
+          <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' as const }}>
+            <pre style={{
+              whiteSpace: 'pre',
+              fontFamily: 'var(--font-ibm-mono, monospace)',
+              fontSize: `${fullscreenFontSize}rem`,
+              color: 'var(--cream-soft)',
+              padding: 'clamp(20px, 4vw, 48px)',
+              margin: 0, lineHeight: 2.0,
+              overflowX: 'auto',
+            }}>
+              {parseLyrics(song.lyrics).map((seg, i) =>
+                seg.type === 'chord' ? (
+                  <ChordTooltip key={i} name={transposeOffset !== 0
+                    ? transposeChords([seg.content], transposeOffset)[0]
+                    : seg.content
+                  }>
+                    <span style={{
+                      color: 'var(--gold-bright)',
+                      fontWeight: 600,
+                      cursor: 'default',
+                      borderBottom: '1px dashed rgba(0,196,180,0.45)',
+                      paddingBottom: '1px',
+                    }}>
+                      {transposeOffset !== 0
+                        ? transposeChords([seg.content], transposeOffset)[0]
+                        : seg.content}
+                    </span>
+                  </ChordTooltip>
+                ) : (
+                  <span key={i}>{seg.content}</span>
+                )
+              )}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {/* Auto-scroll floating bar */}
       {!editMode && <AutoScrollBar hasLyrics={!!song.lyrics} />}

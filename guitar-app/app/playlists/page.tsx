@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import PlaylistsLibrary from '@/components/PlaylistsLibrary';
 
@@ -38,7 +39,13 @@ export default function PlaylistsPage() {
 
       {/* Content */}
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: 'clamp(32px, 5vw, 64px) clamp(16px, 4vw, 48px)' }}>
-        <PlaylistsLibrary />
+        <Suspense fallback={
+          <div style={{ textAlign: 'center', padding: '80px 20px', fontFamily: 'var(--font-cormorant, Georgia, serif)', color: 'var(--cream-muted)', fontSize: '1.2rem' }}>
+            Loading...
+          </div>
+        }>
+          <PlaylistsLibrary />
+        </Suspense>
       </div>
     </main>
   );

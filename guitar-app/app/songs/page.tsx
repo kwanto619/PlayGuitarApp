@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import SongsLibrary from '@/components/SongsLibrary';
 
@@ -40,7 +41,9 @@ export default function SongsPage() {
         maxWidth: '1280px', margin: '0 auto',
         padding: 'clamp(40px, 6vw, 72px) clamp(20px, 4vw, 48px)',
       }}>
-        <SongsLibrary />
+        <Suspense>
+          <SongsLibrary />
+        </Suspense>
       </div>
     </div>
   );

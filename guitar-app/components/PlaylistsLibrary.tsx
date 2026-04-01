@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Playlist, Song } from '@/types';
 import {
@@ -466,7 +467,7 @@ function PlaylistDetail({
                 {idx + 1}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Link href={`/songs/${song.id}`} style={{ textDecoration: 'none' }}>
+                <Link href={`/songs/${song.id}?from=playlist&playlistId=${playlist.id}&playlistName=${encodeURIComponent(playlist.name)}`} style={{ textDecoration: 'none' }}>
                   <div style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.1rem', color: 'var(--cream)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {song.title}
                   </div>
@@ -586,6 +587,7 @@ function PlaylistCard({ playlist, songCount, onClick }: { playlist: Playlist; so
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PlaylistsLibrary() {
+  const searchParams = useSearchParams();
   const [playlists,       setPlaylists]       = useState<Playlist[]>([]);
   const [songs,           setSongs]           = useState<Song[]>([]);
   const [activePlaylist,  setActivePlaylist]  = useState<Playlist | null>(null);
@@ -597,9 +599,15 @@ export default function PlaylistsLibrary() {
     Promise.all([loadPlaylists(), loadSongs()]).then(([pl, sg]) => {
       setPlaylists(pl);
       setSongs(sg);
+      // Auto-open playlist if coming back from a song
+      const activeId = searchParams.get('active');
+      if (activeId) {
+        const found = pl.find((p) => p.id === activeId);
+        if (found) setActivePlaylist(found);
+      }
       setLoading(false);
     });
-  }, []);
+  }, [searchParams]);
 
   const handleCreate = async (name: string) => {
     const updated = await addPlaylist(name);
