@@ -1,8 +1,83 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Standard guitar string targets
+const GUITAR_STRINGS = [
+  { name: 'E2', note: 'E', octave: 2, freq: 82.41 },
+  { name: 'A2', note: 'A', octave: 2, freq: 110.00 },
+  { name: 'D3', note: 'D', octave: 3, freq: 146.83 },
+  { name: 'G3', note: 'G', octave: 3, freq: 196.00 },
+  { name: 'B3', note: 'B', octave: 3, freq: 246.94 },
+  { name: 'E4', note: 'E', octave: 4, freq: 329.63 },
+];
+
+// ── YIN Pitch Detection Algorithm ──────────────────────────────────────────
+// Industry-standard algorithm used by professional tuners.
+// Much more accurate than naive autocorrelation, especially for guitar.
+function yinDetect(buffer: Float32Array, sampleRate: number): { freq: number; probability: number } {
+  const THRESHOLD = 0.15;
+  const halfSize = Math.floor(buffer.length / 2);
+
+  // Step 1: Check signal level
+  let rms = 0;
+  for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
+  rms = Math.sqrt(rms / buffer.length);
+  if (rms < 0.008) return { freq: -1, probability: 0 };
+
+  // Step 2: Difference function
+  const diff = new Float32Array(halfSize);
+  for (let tau = 0; tau < halfSize; tau++) {
+    let sum = 0;
+    for (let i = 0; i < halfSize; i++) {
+      const delta = buffer[i] - buffer[i + tau];
+      sum += delta * delta;
+    }
+    diff[tau] = sum;
+  }
+
+  // Step 3: Cumulative mean normalized difference (CMND)
+  const cmnd = new Float32Array(halfSize);
+  cmnd[0] = 1;
+  let runningSum = 0;
+  for (let tau = 1; tau < halfSize; tau++) {
+    runningSum += diff[tau];
+    cmnd[tau] = diff[tau] * tau / runningSum;
+  }
+
+  // Step 4: Absolute threshold - find first dip below threshold
+  let tau = 2; // min lag (corresponds to max detectable frequency)
+  while (tau < halfSize) {
+    if (cmnd[tau] < THRESHOLD) {
+      // Walk past the dip to find the true minimum
+      while (tau + 1 < halfSize && cmnd[tau + 1] < cmnd[tau]) tau++;
+      break;
+    }
+    tau++;
+  }
+
+  if (tau >= halfSize) return { freq: -1, probability: 0 };
+
+  // Step 5: Parabolic interpolation for sub-sample accuracy
+  let betterTau = tau;
+  if (tau > 0 && tau < halfSize - 1) {
+    const s0 = cmnd[tau - 1];
+    const s1 = cmnd[tau];
+    const s2 = cmnd[tau + 1];
+    const shift = (s0 - s2) / (2 * (s0 - 2 * s1 + s2));
+    if (isFinite(shift)) betterTau = tau + shift;
+  }
+
+  const probability = 1 - cmnd[tau];
+  const freq = sampleRate / betterTau;
+
+  // Only accept frequencies in guitar range (drop D ~73 Hz to high fret ~1200 Hz)
+  if (freq < 70 || freq > 1200) return { freq: -1, probability: 0 };
+
+  return { freq, probability };
+}
 
 // ── Analog Meter SVG ────────────────────────────────────────────────────────
 function MeterSVG({ cents, status }: { cents: number; status: string }) {
@@ -13,15 +88,13 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
     y: CY + r * Math.sin(toRad(deg)),
   });
 
-  // Arc from 210° (upper-left / flat) to 330° (upper-right / sharp)
-  // Center at 270° (straight up) = in tune
   const arcStart  = pt(210, R);
   const arcEnd    = pt(330, R);
-  const greenS    = pt(258, R); // ±10 cents zone start
-  const greenE    = pt(282, R); // ±10 cents zone end
+  const greenS    = pt(258, R);
+  const greenE    = pt(282, R);
 
   const clampedCents   = Math.max(-50, Math.min(50, cents));
-  const needleRotation = (clampedCents / 50) * 60; // degrees from 12-o'clock
+  const needleRotation = (clampedCents / 50) * 60;
 
   const isInTune   = status === 'tuned';
   const needleColor =
@@ -41,14 +114,9 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
       viewBox="0 0 320 175"
       style={{ width: '100%', maxWidth: '420px', display: 'block', margin: '0 auto' }}
     >
-      {/* Track arc — muted background */}
       <path d={arc(arcStart, arcEnd)} fill="none" stroke="rgba(0,196,180,0.1)" strokeWidth="18" strokeLinecap="round" />
-
-      {/* Flat zone */}
       <path d={arc(arcStart, greenS)} fill="none" stroke="rgba(68,136,204,0.18)" strokeWidth="18" />
-      {/* Sharp zone */}
       <path d={arc(greenE, arcEnd)}   fill="none" stroke="rgba(224,72,72,0.18)"  strokeWidth="18" />
-      {/* Green center zone */}
       <path
         d={arc(greenS, greenE)}
         fill="none"
@@ -57,7 +125,6 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
         style={{ transition: 'stroke 0.2s' }}
       />
 
-      {/* Major tick marks */}
       {majorTicks.map((c) => {
         const deg   = 270 + (c / 50) * 60;
         const inner = pt(deg, R - 24);
@@ -73,7 +140,6 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
         );
       })}
 
-      {/* Minor tick marks */}
       {minorTicks.map((c) => {
         const deg   = 270 + (c / 50) * 60;
         const inner = pt(deg, R - 10);
@@ -89,7 +155,6 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
         );
       })}
 
-      {/* Needle — translated to center, then rotated */}
       <g style={{
         transform: `translate(${CX}px, ${CY}px) rotate(${needleRotation}deg)`,
         transition: 'transform 0.12s ease-out',
@@ -102,11 +167,9 @@ function MeterSVG({ cents, status }: { cents: number; status: string }) {
         />
       </g>
 
-      {/* Pivot */}
       <circle cx={CX} cy={CY} r="6"   fill="var(--bg-surface)" />
       <circle cx={CX} cy={CY} r="3.5" fill={needleColor} style={{ transition: 'fill 0.2s' }} />
 
-      {/* Zone labels */}
       <text x="34"  y="106" fill="rgba(68,136,204,0.45)"  fontSize="7.5" fontFamily="Georgia,serif" letterSpacing="2" textAnchor="middle">FLAT</text>
       <text x="286" y="106" fill="rgba(224,72,72,0.45)"   fontSize="7.5" fontFamily="Georgia,serif" letterSpacing="2" textAnchor="middle">SHARP</text>
       <text x={CX}  y="106" fill="rgba(80,232,128,0.4)"  fontSize="8"   fontFamily="Georgia,serif" letterSpacing="1" textAnchor="middle">IN TUNE</text>
@@ -129,6 +192,8 @@ export default function Tuner() {
   const [frequency,   setFrequency]   = useState(0);
   const [cents,       setCents]       = useState(0);
   const [status,      setStatus]      = useState<'tuned' | 'sharp' | 'flat' | 'idle'>('idle');
+  const [targetString, setTargetString] = useState<number | null>(null);
+  const [detectedString, setDetectedString] = useState<number | null>(null);
 
   const audioContextRef  = useRef<AudioContext | null>(null);
   const analyserRef      = useRef<AnalyserNode | null>(null);
@@ -137,65 +202,38 @@ export default function Tuner() {
   const pitchBufferRef   = useRef<number[]>([]);
   const isListeningRef   = useRef(false);
 
-  const minVolume    = 0.005;
-  const minConfidence = 0.85;
-  const bufferSize   = 5;
-
-  const autoCorrelate = (buffer: Float32Array, sampleRate: number): number => {
-    const SIZE = buffer.length;
-    let rms = 0;
-    for (let i = 0; i < SIZE; i++) rms += buffer[i] * buffer[i];
-    rms = Math.sqrt(rms / SIZE);
-    if (rms < minVolume) return -1;
-
-    const threshold = 0.2;
-    let r1 = 0;
-    for (let i = 0; i < SIZE / 2; i++) {
-      if (Math.abs(buffer[i]) < threshold) { r1 = i; break; }
-    }
-    void r1;
-
-    const correlations = new Array(SIZE).fill(0);
-    for (let i = 0; i < SIZE; i++)
-      for (let j = 0; j < SIZE - i; j++)
-        correlations[i] += buffer[j] * buffer[j + i];
-
-    let d = 0;
-    while (correlations[d] > correlations[d + 1]) d++;
-
-    let maxval = -1, maxpos = -1;
-    for (let i = d; i < SIZE / 2; i++) {
-      if (correlations[i] > maxval) { maxval = correlations[i]; maxpos = i; }
-    }
-
-    let T0 = maxpos;
-    if (T0 > 0 && T0 < SIZE - 1) {
-      const x1 = correlations[T0 - 1], x2 = correlations[T0], x3 = correlations[T0 + 1];
-      const a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2;
-      if (a) T0 = T0 - b / (2 * a);
-    }
-
-    if (maxval / correlations[0] < minConfidence) return -1;
-    return sampleRate / T0;
-  };
+  const bufferSize = 5;
 
   const noteFromPitch = (f: number) => Math.round(12 * (Math.log(f / 440) / Math.log(2))) + 69;
   const freqFromNote  = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
   const centsOff = (f: number, n: number) => Math.floor(1200 * Math.log(f / freqFromNote(n)) / Math.log(2));
 
-  const updatePitch = () => {
+  // Find closest guitar string to a frequency
+  const closestString = (freq: number): number => {
+    let minDist = Infinity, idx = 0;
+    for (let i = 0; i < GUITAR_STRINGS.length; i++) {
+      // Compare in cents for perceptual accuracy
+      const c = Math.abs(1200 * Math.log(freq / GUITAR_STRINGS[i].freq) / Math.log(2));
+      if (c < minDist) { minDist = c; idx = i; }
+    }
+    return idx;
+  };
+
+  const updatePitch = useCallback(() => {
     if (!analyserRef.current || !isListeningRef.current) return;
 
     const buffer = new Float32Array(analyserRef.current.fftSize);
     analyserRef.current.getFloatTimeDomainData(buffer);
-    const pitch = autoCorrelate(buffer, audioContextRef.current!.sampleRate);
+    const result = yinDetect(buffer, audioContextRef.current!.sampleRate);
 
-    if (pitch > 60 && pitch < 1000) {
-      pitchBufferRef.current.push(pitch);
+    if (result.freq > 0 && result.probability > 0.8) {
+      pitchBufferRef.current.push(result.freq);
       if (pitchBufferRef.current.length > bufferSize) pitchBufferRef.current.shift();
 
+      // Median filter for stability
       const sorted = [...pitchBufferRef.current].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)];
+
       const noteNum  = noteFromPitch(median);
       const noteName = noteStrings[noteNum % 12];
       const octave   = Math.floor(noteNum / 12) - 1;
@@ -204,13 +242,33 @@ export default function Tuner() {
       setNote(noteName + octave);
       setFrequency(median);
       setCents(c);
-      setStatus(Math.abs(c) <= 2 ? 'tuned' : c < 0 ? 'flat' : 'sharp');
+      setStatus(Math.abs(c) <= 5 ? 'tuned' : c < 0 ? 'flat' : 'sharp');
+      setDetectedString(closestString(median));
     } else {
-      pitchBufferRef.current = [];
+      // Don't clear immediately — keep last reading for a moment
+      if (pitchBufferRef.current.length > 0) {
+        pitchBufferRef.current.pop();
+      }
     }
 
     if (isListeningRef.current) rafIdRef.current = requestAnimationFrame(updatePitch);
-  };
+  }, []);
+
+  const stopTuner = useCallback(() => {
+    isListeningRef.current = false;
+    setIsListening(false);
+    setNote('—');
+    setFrequency(0);
+    setCents(0);
+    setStatus('idle');
+    setDetectedString(null);
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    if (microphoneRef.current) {
+      microphoneRef.current.disconnect();
+      const src = microphoneRef.current as MediaStreamAudioSourceNode & { mediaStream: MediaStream };
+      src.mediaStream?.getTracks().forEach((t) => t.stop());
+    }
+  }, []);
 
   const toggleTuner = async () => {
     if (!isListening) {
@@ -222,13 +280,13 @@ export default function Tuner() {
         if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
 
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 44100 },
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         });
 
         microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
         analyserRef.current   = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 8192;
-        analyserRef.current.smoothingTimeConstant = 0.8;
+        analyserRef.current.fftSize = 4096;
+        analyserRef.current.smoothingTimeConstant = 0.4;
         microphoneRef.current.connect(analyserRef.current);
 
         isListeningRef.current = true;
@@ -243,22 +301,7 @@ export default function Tuner() {
     }
   };
 
-  const stopTuner = () => {
-    isListeningRef.current = false;
-    setIsListening(false);
-    setNote('—');
-    setFrequency(0);
-    setCents(0);
-    setStatus('idle');
-    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-    if (microphoneRef.current) {
-      microphoneRef.current.disconnect();
-      const src = microphoneRef.current as MediaStreamAudioSourceNode & { mediaStream: MediaStream };
-      src.mediaStream?.getTracks().forEach((t) => t.stop());
-    }
-  };
-
-  useEffect(() => () => { stopTuner(); }, []);
+  useEffect(() => () => { stopTuner(); }, [stopTuner]);
 
   const noteColor =
     status === 'tuned' ? 'var(--phosphor)' :
@@ -280,12 +323,10 @@ export default function Tuner() {
         position: 'relative',
         boxShadow: '0 12px 56px rgba(0,0,0,0.75), inset 0 1px 0 rgba(0,196,180,0.07)',
       }}>
-        {/* Corner brackets */}
         {corners.map((s, i) => (
           <div key={i} style={{ position: 'absolute', width: 22, height: 22, ...s }} />
         ))}
 
-        {/* Section label */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ fontSize: '0.58rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', marginBottom: '5px' }}>
             Precision Instrument
@@ -303,6 +344,76 @@ export default function Tuner() {
           </h2>
         </div>
 
+        {/* Guitar string selector */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '6px',
+          marginBottom: '24px',
+        }}>
+          {GUITAR_STRINGS.map((s, i) => {
+            const isTarget = targetString === i;
+            const isDetected = detectedString === i && isListening;
+            const stringStatus = isDetected
+              ? (status === 'tuned' ? 'tuned' : status === 'flat' ? 'flat' : 'sharp')
+              : null;
+            return (
+              <button
+                key={s.name}
+                onClick={() => setTargetString(isTarget ? null : i)}
+                style={{
+                  width: '48px',
+                  height: '52px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '2px',
+                  border: isTarget
+                    ? '1px solid var(--gold-bright)'
+                    : isDetected
+                      ? `1px solid ${stringStatus === 'tuned' ? 'rgba(80,232,128,0.6)' : stringStatus === 'flat' ? 'rgba(68,136,204,0.5)' : 'rgba(224,72,72,0.5)'}`
+                      : '1px solid var(--gold-border)',
+                  background: isTarget
+                    ? 'rgba(0,130,120,0.2)'
+                    : isDetected && stringStatus === 'tuned'
+                      ? 'rgba(80,232,128,0.08)'
+                      : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  boxShadow: isDetected && stringStatus === 'tuned'
+                    ? '0 0 12px rgba(80,232,128,0.3)'
+                    : 'none',
+                }}
+              >
+                <span style={{
+                  fontFamily: 'var(--font-ibm-mono, monospace)',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: isDetected && stringStatus === 'tuned'
+                    ? 'var(--phosphor)'
+                    : isTarget
+                      ? 'var(--gold-bright)'
+                      : isDetected
+                        ? (stringStatus === 'flat' ? 'var(--blue-tuning)' : 'var(--red-tuning)')
+                        : 'var(--cream-muted)',
+                  transition: 'color 0.15s',
+                }}>
+                  {s.note}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-ibm-mono, monospace)',
+                  fontSize: '0.55rem',
+                  color: 'var(--cream-muted)',
+                  opacity: 0.5,
+                }}>
+                  {s.freq.toFixed(0)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Note display */}
         <div style={{ textAlign: 'center', minHeight: '110px', marginBottom: '8px' }}>
           <div style={{
@@ -314,8 +425,7 @@ export default function Tuner() {
             textShadow: noteGlow,
             transition: 'color 0.2s, text-shadow 0.2s',
             letterSpacing: '-0.02em',
-            className: isListening && status === 'tuned' ? 'phosphor-pulse' : '',
-          } as React.CSSProperties}>
+          }}>
             {note}
           </div>
           <div style={{
@@ -346,9 +456,9 @@ export default function Tuner() {
               textShadow: status === 'tuned' ? '0 0 20px rgba(80,232,128,0.5)' : 'none',
               transition: 'color 0.2s, text-shadow 0.2s',
             }}>
-              {status === 'tuned' && '✓ In Tune'}
-              {status === 'flat'  && `Tune Up  ↑  ${cents}¢`}
-              {status === 'sharp' && `Tune Down  ↓  +${cents}¢`}
+              {status === 'tuned' && '\u2713 In Tune'}
+              {status === 'flat'  && `Tune Up  \u2191  ${cents}\u00a2`}
+              {status === 'sharp' && `Tune Down  \u2193  +${cents}\u00a2`}
             </div>
           )}
         </div>
@@ -375,7 +485,7 @@ export default function Tuner() {
               transition: 'all 0.2s',
             }}
           >
-            {isListening ? '◼  Stop' : '●  Start Tuner'}
+            {isListening ? '\u25FC  Stop' : '\u25CF  Start Tuner'}
           </button>
         </div>
 
@@ -394,7 +504,7 @@ export default function Tuner() {
           opacity: 0.45,
           textTransform: 'uppercase',
         }}>
-          A · 440 Hz · Standard Tuning
+          A &middot; 440 Hz &middot; Standard Tuning
         </div>
       </div>
     </div>
