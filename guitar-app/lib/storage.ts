@@ -14,10 +14,18 @@ type SongRow = {
   youtube_video_id: string | null;
   user_id: string | null;
   created_at?: string | null;
-  profiles?: { username: string | null } | null;
 };
 
-function mapSong(s: SongRow): Song {
+async function usernameMap(userIds: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(userIds.filter((x): x is string => !!x)));
+  const out = new Map<string, string>();
+  if (ids.length === 0) return out;
+  const { data } = await supabase.from('profiles').select('id, username').in('id', ids);
+  (data ?? []).forEach((p) => out.set(p.id, p.username));
+  return out;
+}
+
+function mapSong(s: SongRow, names?: Map<string, string>): Song {
   return {
     id: s.id, title: s.title, artist: s.artist,
     chords: s.chords,
@@ -28,39 +36,43 @@ function mapSong(s: SongRow): Song {
     rating: s.rating ?? undefined,
     youtubeVideoId: s.youtube_video_id || undefined,
     userId: s.user_id ?? undefined,
-    uploaderUsername: s.profiles?.username ?? undefined,
+    uploaderUsername: (s.user_id && names?.get(s.user_id)) || undefined,
     createdAt: s.created_at ?? undefined,
   };
 }
 
 // ── Songs ─────────────────────────────────────────────────────────────────────
-const SONG_SELECT = '*, profiles:user_id(username)';
+async function attachSongUsernames(rows: SongRow[]): Promise<Song[]> {
+  const names = await usernameMap(rows.map((r) => r.user_id));
+  return rows.map((r) => mapSong(r, names));
+}
 
 export const loadSongs = async (): Promise<Song[]> => {
   const uid = await currentUserId();
-  let q = supabase.from('songs').select(SONG_SELECT).order('created_at', { ascending: false });
+  let q = supabase.from('songs').select('*').order('created_at', { ascending: false });
   if (uid) q = q.eq('user_id', uid);
   const { data, error } = await q;
   if (error) { console.error('loadSongs:', error); return []; }
-  return (data as SongRow[]).map(mapSong);
+  return attachSongUsernames(data as SongRow[]);
 };
 
 export const loadAllPublicSongs = async (): Promise<Song[]> => {
-  const { data, error } = await supabase.from('songs').select(SONG_SELECT).eq('is_public', true).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('songs').select('*').eq('is_public', true).order('created_at', { ascending: false });
   if (error) { console.error('loadAllPublicSongs:', error); return []; }
-  return (data as SongRow[]).map(mapSong);
+  return attachSongUsernames(data as SongRow[]);
 };
 
 export const loadSongsByUser = async (userId: string): Promise<Song[]> => {
-  const { data, error } = await supabase.from('songs').select(SONG_SELECT).eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('songs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
   if (error) { console.error('loadSongsByUser:', error); return []; }
-  return (data as SongRow[]).map(mapSong);
+  return attachSongUsernames(data as SongRow[]);
 };
 
 export const loadSongById = async (id: string): Promise<Song | null> => {
-  const { data, error } = await supabase.from('songs').select(SONG_SELECT).eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('songs').select('*').eq('id', id).maybeSingle();
   if (error || !data) return null;
-  return mapSong(data as SongRow);
+  const [song] = await attachSongUsernames([data as SongRow]);
+  return song;
 };
 
 export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
@@ -133,33 +145,35 @@ export const importSongs = async (file: File): Promise<Song[]> => {
 type PlaylistRow = {
   id: string; name: string; song_ids: string[] | null;
   user_id: string | null; is_public: boolean | null;
-  profiles?: { username: string | null } | null;
 };
 
-function mapPlaylist(p: PlaylistRow): Playlist {
+function mapPlaylist(p: PlaylistRow, names?: Map<string, string>): Playlist {
   return {
     id: p.id, name: p.name, song_ids: p.song_ids ?? [],
     userId: p.user_id ?? undefined,
-    ownerUsername: p.profiles?.username ?? undefined,
+    ownerUsername: (p.user_id && names?.get(p.user_id)) || undefined,
     isPublic: p.is_public ?? undefined,
   };
 }
 
-const PLAYLIST_SELECT = '*, profiles:user_id(username)';
+async function attachPlaylistUsernames(rows: PlaylistRow[]): Promise<Playlist[]> {
+  const names = await usernameMap(rows.map((r) => r.user_id));
+  return rows.map((r) => mapPlaylist(r, names));
+}
 
 export const loadPlaylists = async (): Promise<Playlist[]> => {
   const uid = await currentUserId();
-  let q = supabase.from('playlists').select(PLAYLIST_SELECT).order('created_at', { ascending: false });
+  let q = supabase.from('playlists').select('*').order('created_at', { ascending: false });
   if (uid) q = q.eq('user_id', uid);
   const { data, error } = await q;
   if (error) { console.error('loadPlaylists:', error); return []; }
-  return (data as PlaylistRow[]).map(mapPlaylist);
+  return attachPlaylistUsernames(data as PlaylistRow[]);
 };
 
 export const loadPlaylistsByUser = async (userId: string): Promise<Playlist[]> => {
-  const { data, error } = await supabase.from('playlists').select(PLAYLIST_SELECT).eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('playlists').select('*').eq('user_id', userId).order('created_at', { ascending: false });
   if (error) { console.error('loadPlaylistsByUser:', error); return []; }
-  return (data as PlaylistRow[]).map(mapPlaylist);
+  return attachPlaylistUsernames(data as PlaylistRow[]);
 };
 
 export const addPlaylist = async (name: string): Promise<Playlist[]> => {
@@ -245,13 +259,18 @@ export const loadFavoriteSongs = async (): Promise<Song[]> => {
   if (!uid) return [];
   const { data, error } = await supabase
     .from('favorites')
-    .select(`created_at, songs:song_id(${SONG_SELECT})`)
+    .select('song_id, created_at')
     .eq('user_id', uid)
     .order('created_at', { ascending: false });
   if (error) { console.error('loadFavoriteSongs:', error); return []; }
-  return (data || [])
-    .flatMap((r) => (r.songs ? [r.songs as unknown as SongRow] : []))
-    .map(mapSong);
+  const ids = (data ?? []).map((r) => r.song_id);
+  if (ids.length === 0) return [];
+  const { data: songs } = await supabase.from('songs').select('*').in('id', ids);
+  const order = new Map(ids.map((id, i) => [id, i]));
+  const sorted = (songs as SongRow[] | null ?? []).sort(
+    (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+  );
+  return attachSongUsernames(sorted);
 };
 
 export const toggleFavorite = async (songId: string): Promise<boolean> => {
@@ -309,27 +328,28 @@ export const loadFeed = async (): Promise<Song[]> => {
   const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', uid);
   const ids = (follows ?? []).map((r) => r.following_id);
   if (ids.length === 0) return [];
-  const { data, error } = await supabase.from('songs').select(SONG_SELECT).in('user_id', ids).order('created_at', { ascending: false }).limit(60);
+  const { data, error } = await supabase.from('songs').select('*').in('user_id', ids).order('created_at', { ascending: false }).limit(60);
   if (error) return [];
-  return (data as SongRow[]).map(mapSong);
+  return attachSongUsernames(data as SongRow[]);
 };
 
 // ── Comments ──────────────────────────────────────────────────────────────────
 type CommentRow = {
   id: string; song_id: string; user_id: string; body: string; created_at: string;
-  profiles?: { username: string | null } | null;
 };
 
 export const loadComments = async (songId: string): Promise<Comment[]> => {
   const { data, error } = await supabase
     .from('comments')
-    .select('*, profiles:user_id(username)')
+    .select('*')
     .eq('song_id', songId)
     .order('created_at', { ascending: true });
   if (error) return [];
-  return (data as CommentRow[]).map((c) => ({
+  const rows = data as CommentRow[];
+  const names = await usernameMap(rows.map((c) => c.user_id));
+  return rows.map((c) => ({
     id: c.id, songId: c.song_id, userId: c.user_id,
-    username: c.profiles?.username ?? 'unknown',
+    username: names.get(c.user_id) ?? 'unknown',
     body: c.body, createdAt: c.created_at,
   }));
 };
