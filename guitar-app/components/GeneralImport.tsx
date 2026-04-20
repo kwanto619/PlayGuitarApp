@@ -26,16 +26,38 @@ function detectSite(url: string): Site {
 }
 
 // ── Shared HTML utilities ─────────────────────────────────────────────────────
-function stripHtml(s: string): string {
+function decodeEntities(s: string): string {
   return s
-    .replace(/<[^>]+>/g, '')
     .replace(/&shy;/g, '')
-    .replace(/&amp;/g, '&')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .trim();
+    .replace(/&apos;/g, "'")
+    .replace(/&#0?39;/g, "'")
+    .replace(/&rsquo;/g, '\u2019')
+    .replace(/&lsquo;/g, '\u2018')
+    .replace(/&rdquo;/g, '\u201D')
+    .replace(/&ldquo;/g, '\u201C')
+    .replace(/&ndash;/g, '\u2013')
+    .replace(/&mdash;/g, '\u2014')
+    .replace(/&hellip;/g, '\u2026')
+    .replace(/&Ccedil;/g, '\u00C7').replace(/&ccedil;/g, '\u00E7')
+    .replace(/&Atilde;/g, '\u00C3').replace(/&atilde;/g, '\u00E3')
+    .replace(/&Eacute;/g, '\u00C9').replace(/&eacute;/g, '\u00E9')
+    .replace(/&Iacute;/g, '\u00CD').replace(/&iacute;/g, '\u00ED')
+    .replace(/&Oacute;/g, '\u00D3').replace(/&oacute;/g, '\u00F3')
+    .replace(/&Uacute;/g, '\u00DA').replace(/&uacute;/g, '\u00FA')
+    .replace(/&egrave;/g, '\u00E8').replace(/&agrave;/g, '\u00E0')
+    .replace(/&igrave;/g, '\u00EC').replace(/&ograve;/g, '\u00F2')
+    .replace(/&ugrave;/g, '\u00F9')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&amp;/g, '&');
+}
+
+function stripHtml(s: string): string {
+  return decodeEntities(s.replace(/<[^>]+>/g, '')).trim();
 }
 
 function extractDivById(html: string, id: string): string | null {
@@ -338,8 +360,8 @@ function parseUGHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBloc
   const tab     = (data as Record<string, unknown> & { store?: { page?: { data?: { tab?: Record<string, unknown>; tab_view?: Record<string, unknown> } } } })?.store?.page?.data?.tab ?? {};
   const tabView = (data as Record<string, unknown> & { store?: { page?: { data?: { tab_view?: { wiki_tab?: { content?: string } } } } } })?.store?.page?.data?.tab_view;
 
-  const title  = String(tab.song_name   ?? '');
-  const artist = String(tab.artist_name ?? '');
+  const title  = decodeEntities(String(tab.song_name   ?? ''));
+  const artist = decodeEntities(String(tab.artist_name ?? ''));
 
   // Content is in tab_view.wiki_tab.content (preferred) or tab.content
   const rawContent = String(tabView?.wiki_tab?.content ?? tab.content ?? '');
@@ -354,10 +376,12 @@ function parseUGHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'siteBloc
   }
 
   // Convert UG markup to plain text
-  const lyrics = rawContent
-    .replace(/\[tab\]/g, '').replace(/\[\/tab\]/g, '')
-    .replace(/\[ch\]([^\[]+)\[\/ch\]/g, '$1')
-    .replace(/\r\n/g, '\n')
+  const lyrics = decodeEntities(
+    rawContent
+      .replace(/\[tab\]/g, '').replace(/\[\/tab\]/g, '')
+      .replace(/\[ch\]([^\[]+)\[\/ch\]/g, '$1')
+      .replace(/\r\n/g, '\n')
+  )
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
