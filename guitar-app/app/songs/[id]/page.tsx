@@ -186,6 +186,17 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   const playlistId = searchParams.get('playlistId');
   const playlistName = searchParams.get('playlistName');
   const fromPage = searchParams.get('fromPage');
+  const fromLang = searchParams.get('fromLang');
+  const fromQ    = searchParams.get('fromQ');
+
+  const buildMySongsUrl = () => {
+    const params = new URLSearchParams();
+    if (fromLang) params.set('lang', fromLang);
+    if (fromPage) params.set('page', fromPage);
+    if (fromQ)    params.set('q', fromQ);
+    const qs = params.toString();
+    return qs ? `/songs?${qs}` : '/songs';
+  };
 
   const [song,            setSong]            = useState<Song | null>(null);
   const [loading,         setLoading]         = useState(true);
@@ -374,7 +385,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             ← {playlistName ? decodeURIComponent(playlistName) : 'Playlist'}
           </button>
         ) : (
-          <button onClick={() => router.push(fromPage ? `/songs?page=${fromPage}` : '/songs')} style={backBtnStyle}>
+          <button onClick={() => router.push(buildMySongsUrl())} style={backBtnStyle}>
             ← My Songs
           </button>
         )}

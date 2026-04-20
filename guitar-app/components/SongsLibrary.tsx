@@ -111,12 +111,25 @@ export default function SongsLibrary() {
   const searchParams = useSearchParams();
   const [songs,          setSongs]          = useState<Song[]>([]);
   const [showAddForm,    setShowAddForm]    = useState(false);
-  const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>('all');
-  const [search,         setSearch]         = useState('');
+  const initialLang = (searchParams.get('lang') as 'all' | 'greek' | 'english' | null) || 'all';
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'greek' | 'english'>(
+    initialLang === 'greek' || initialLang === 'english' ? initialLang : 'all'
+  );
+  const [search,         setSearch]         = useState(searchParams.get('q') || '');
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   const [page,           setPage]           = useState(initialPage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const PAGE_SIZE = 15;
+
+  // Keep URL in sync with filter/page/search so back-nav restores state
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (languageFilter !== 'all') params.set('lang', languageFilter);
+    if (page > 1) params.set('page', String(page));
+    if (search.trim()) params.set('q', search.trim());
+    const qs = params.toString();
+    router.replace(qs ? `/songs?${qs}` : '/songs', { scroll: false });
+  }, [languageFilter, page, search, router]);
 
   const blankForm = { title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' as 'greek' | 'english' };
   const [newSong, setNewSong] = useState(blankForm);
@@ -364,7 +377,13 @@ export default function SongsLibrary() {
             <SongCard
               key={song.id}
               song={song}
-              onClick={() => router.push(`/songs/${song.id}?fromPage=${safePage}`)}
+              onClick={() => {
+                const params = new URLSearchParams();
+                params.set('fromPage', String(safePage));
+                if (languageFilter !== 'all') params.set('fromLang', languageFilter);
+                if (search.trim()) params.set('fromQ', search.trim());
+                router.push(`/songs/${song.id}?${params.toString()}`);
+              }}
               onDelete={() => handleDeleteSong(song.id)}
               onRate={(r) => handleRating(song.id, r)}
             />
