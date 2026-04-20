@@ -32,7 +32,7 @@ export default function SongsPage() {
           fontSize: '0.78rem', letterSpacing: '0.3em',
           textTransform: 'uppercase', color: 'var(--cream-soft)',
         }}>
-          ♪ My Songs
+          ♪ Songs
         </span>
       </div>
 

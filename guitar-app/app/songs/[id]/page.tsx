@@ -390,7 +390,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           </button>
         ) : (
           <button onClick={() => router.push(buildMySongsUrl())} style={backBtnStyle}>
-            ← My Songs
+            ← Songs
           </button>
         )}
 

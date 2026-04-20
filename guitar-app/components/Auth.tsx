@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 const inputStyle: React.CSSProperties = {
@@ -26,6 +27,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function Auth() {
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -55,6 +57,7 @@ export default function Auth() {
       }
       const { error: sErr } = await supabase.auth.signInWithPassword({ email, password });
       if (sErr) throw new Error('Invalid username or password');
+      router.push('/');
     } catch (err) {
       setMessage((err as Error).message);
       setIsError(true);

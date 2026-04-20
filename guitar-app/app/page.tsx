@@ -239,9 +239,9 @@ const cards = [
   },
   {
     href:        '/songs',
-    label:       'My Songs',
-    subtitle:    'Your collection',
-    description: 'Store lyrics, chords and notes for every song you play. Hover chords to see diagrams.',
+    label:       'Songs',
+    subtitle:    'Community library',
+    description: 'Every song uploaded by any member. Hover chords for diagrams, view who uploaded each song.',
     Icon:        SongsIcon,
   },
   {

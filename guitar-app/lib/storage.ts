@@ -48,10 +48,7 @@ async function attachSongUsernames(rows: SongRow[]): Promise<Song[]> {
 }
 
 export const loadSongs = async (): Promise<Song[]> => {
-  const uid = await currentUserId();
-  let q = supabase.from('songs').select('*').order('created_at', { ascending: false });
-  if (uid) q = q.eq('user_id', uid);
-  const { data, error } = await q;
+  const { data, error } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
   if (error) { console.error('loadSongs:', error); return []; }
   return attachSongUsernames(data as SongRow[]);
 };
