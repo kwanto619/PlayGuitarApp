@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Song } from '@/types';
 import { loadFavoriteSongs } from '@/lib/storage';
 import FavoriteButton from '@/components/FavoriteButton';
+import AuthRequired from '@/components/AuthRequired';
 
 export default function FavoritesPage() {
   const [songs,   setSongs]   = useState<Song[]>([]);
@@ -13,6 +14,7 @@ export default function FavoritesPage() {
   useEffect(() => { loadFavoriteSongs().then((s) => { setSongs(s); setLoading(false); }); }, []);
 
   return (
+    <AuthRequired feature="Favorites">
     <div style={{ minHeight: '100vh' }}>
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -75,6 +77,7 @@ export default function FavoritesPage() {
         )}
       </div>
     </div>
+    </AuthRequired>
   );
 }
 

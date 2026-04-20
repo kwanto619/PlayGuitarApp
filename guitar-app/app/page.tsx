@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import UserMenu from '@/components/UserMenu';
+import { useAuth } from '@/lib/auth';
+
+const AUTH_REQUIRED = new Set(['/playlists', '/favorites', '/feed']);
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -290,9 +293,12 @@ const cards = [
 
 function NavCard({ href, label, subtitle, description, Icon }: typeof cards[number]) {
   const [hovered, setHovered] = useState(false);
+  const { user } = useAuth();
+  const locked = !user && AUTH_REQUIRED.has(href);
+  const target = locked ? '/auth' : href;
 
   return (
-    <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>
+    <Link href={target} style={{ textDecoration: 'none', display: 'block' }}>
       <div
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -394,7 +400,7 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
           transition: 'color 0.25s',
           opacity: hovered ? 1 : 0.5,
         }}>
-          Open →
+          {locked ? '🔒 Sign In →' : 'Open →'}
         </div>
       </div>
     </Link>

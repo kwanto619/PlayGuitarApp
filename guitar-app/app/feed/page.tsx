@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Song } from '@/types';
 import { loadFeed } from '@/lib/storage';
+import AuthRequired from '@/components/AuthRequired';
 
 function timeAgo(iso?: string): string {
   if (!iso) return '';
@@ -22,6 +23,7 @@ export default function FeedPage() {
   useEffect(() => { loadFeed().then((s) => { setSongs(s); setLoading(false); }); }, []);
 
   return (
+    <AuthRequired feature="Feed">
     <div style={{ minHeight: '100vh' }}>
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -83,6 +85,7 @@ export default function FeedPage() {
         )}
       </div>
     </div>
+    </AuthRequired>
   );
 }
 
