@@ -17,12 +17,34 @@ export interface Song {
   bpm?: number;
   rating?: number; // 1–5
   youtubeVideoId?: string;
+  userId?: string;
+  uploaderUsername?: string;
+  createdAt?: string;
 }
 
 export interface Playlist {
   id: string;
   name: string;
   song_ids: string[];
+  userId?: string;
+  ownerUsername?: string;
+  isPublic?: boolean;
+}
+
+export interface Profile {
+  id: string;
+  username: string;
+  displayName?: string;
+  bio?: string;
+}
+
+export interface Comment {
+  id: string;
+  songId: string;
+  userId: string;
+  username: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface Progression {

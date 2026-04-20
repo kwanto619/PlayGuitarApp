@@ -5,9 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { use } from 'react';
 import Link from 'next/link';
 import { Song } from '@/types';
-import { loadSongs, updateSong, deleteSong } from '@/lib/storage';
+import { loadSongById, updateSong, deleteSong } from '@/lib/storage';
 import ChordTooltip, { parseLyrics } from '@/components/ChordTooltip';
 import { transposeChords, getTransposeLabel } from '@/lib/transpose';
+import FavoriteButton from '@/components/FavoriteButton';
+import Comments from '@/components/Comments';
+import { exportSongPdf } from '@/lib/pdf';
+import { useAuth } from '@/lib/auth';
 
 // ── Shared style helpers ────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
@@ -181,6 +185,7 @@ const scrollNudge: React.CSSProperties = {
 export default function SongPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const fromPlaylist = searchParams.get('from') === 'playlist';
   const playlistId = searchParams.get('playlistId');
@@ -257,8 +262,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   };
 
   useEffect(() => {
-    loadSongs().then((songs) => {
-      const found = songs.find((s) => s.id === id) ?? null;
+    loadSongById(id).then((found) => {
       setSong(found);
       if (found) {
         setLocalBpm(found.bpm);
@@ -392,16 +396,22 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {!editMode && <FavoriteButton songId={id} />}
+          {!editMode && song && (
+            <ActionBtn onClick={() => exportSongPdf(song)}>PDF</ActionBtn>
+          )}
           {editMode ? (
             <>
               <ActionBtn onClick={handleSave} gold>Save</ActionBtn>
               <ActionBtn onClick={() => setEditMode(false)}>Cancel</ActionBtn>
             </>
           ) : (
-            <>
-              <ActionBtn onClick={() => setEditMode(true)} gold>Edit</ActionBtn>
-              <ActionBtn onClick={handleDelete} danger>Delete</ActionBtn>
-            </>
+            user && song && song.userId === user.id && (
+              <>
+                <ActionBtn onClick={() => setEditMode(true)} gold>Edit</ActionBtn>
+                <ActionBtn onClick={handleDelete} danger>Delete</ActionBtn>
+              </>
+            )
           )}
         </div>
       </div>
@@ -443,6 +453,19 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
               }}>
                 {song.language === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
               </div>
+
+              {/* Uploader attribution */}
+              {song.uploaderUsername && (
+                <div style={{
+                  fontSize: '0.72rem', letterSpacing: '0.15em', color: 'var(--cream-muted)',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)', marginBottom: '14px',
+                }}>
+                  Uploaded by{' '}
+                  <Link href={`/u/${song.uploaderUsername}`} style={{ color: 'var(--gold-bright)', textDecoration: 'none' }}>
+                    @{song.uploaderUsername}
+                  </Link>
+                </div>
+              )}
 
               {/* Title */}
               <h1 style={{
@@ -903,6 +926,13 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
               )}
             </pre>
           </div>
+        </div>
+      )}
+
+      {/* Comments */}
+      {!editMode && (
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 clamp(20px, 4vw, 48px) 32px' }}>
+          <Comments songId={song.id} />
         </div>
       )}
 

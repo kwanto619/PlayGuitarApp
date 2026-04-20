@@ -1,11 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.tabs4acoustic.com)"
+      "WebFetch(domain:www.tabs4acoustic.com)",
+      "Bash(npm run *)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "claude-flow"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

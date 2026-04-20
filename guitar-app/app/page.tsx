@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import UserMenu from '@/components/UserMenu';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -167,6 +168,39 @@ function ProgressionsIcon() {
   );
 }
 
+function FavoritesIcon() {
+  return (
+    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
+      <path d="M40 62 C20 50 10 38 10 26 C10 18 18 12 26 12 C32 12 36 15 40 20 C44 15 48 12 54 12 C62 12 70 18 70 26 C70 38 60 50 40 62Z"
+        strokeWidth="2.5" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
+    </svg>
+  );
+}
+
+function FeedIcon() {
+  return (
+    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
+      <circle cx="16" cy="56" r="4" fill="currentColor" stroke="none" />
+      <path d="M14 40 Q14 26 28 26" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M14 20 Q14 8 36 8 Q60 8 60 28" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
+      <path d="M14 52 L56 52 L66 40 L66 24 L56 14" strokeWidth="0" />
+      <line x1="30" y1="22" x2="66" y2="22" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+      <line x1="30" y1="34" x2="66" y2="34" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+      <line x1="30" y1="46" x2="54" y2="46" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
+      <circle cx="34" cy="32" r="18" strokeWidth="2.5" />
+      <line x1="48" y1="46" x2="66" y2="62" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="34" cy="32" r="6" fill="currentColor" stroke="none" opacity="0.5" />
+    </svg>
+  );
+}
+
 function PlaylistsIcon() {
   // Ordered list with a small music note accent
   return (
@@ -230,6 +264,27 @@ const cards = [
     subtitle:    'Chord sequences',
     description: 'Build chord progressions like Am–F–C–G, loop them with the metronome, and save them for practice.',
     Icon:        ProgressionsIcon,
+  },
+  {
+    href:        '/favorites',
+    label:       'Favorites',
+    subtitle:    'Hearts you gave',
+    description: 'Songs you marked with a heart — your personal shortlist across the whole library.',
+    Icon:        FavoritesIcon,
+  },
+  {
+    href:        '/feed',
+    label:       'Feed',
+    subtitle:    'From people you follow',
+    description: 'Latest song uploads from accounts you follow. Keep up with friends and artists you like.',
+    Icon:        FeedIcon,
+  },
+  {
+    href:        '/search',
+    label:       'Find Members',
+    subtitle:    'Discover players',
+    description: 'Search for friends by username. See their songs, playlists, and follow them for updates.',
+    Icon:        SearchIcon,
   },
 ] as const;
 
@@ -359,6 +414,9 @@ export default function Home() {
         position: 'relative',
         overflow: 'hidden',
       }}>
+        <div style={{ position: 'absolute', top: '16px', right: '20px', zIndex: 2 }}>
+          <UserMenu />
+        </div>
         {/* Teal radial glow behind title */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
