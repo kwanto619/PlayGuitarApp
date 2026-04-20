@@ -19,6 +19,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [following, setFollowing] = useState(false);
   const [loading,   setLoading]   = useState(true);
   const [busy,      setBusy]      = useState(false);
+  const [tab,       setTab]       = useState<'none' | 'songs' | 'playlists'>('none');
+  const [songPage,  setSongPage]  = useState(1);
+  const SONGS_PER_PAGE = 12;
 
   useEffect(() => {
     (async () => {
@@ -126,70 +129,118 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               )}
             </div>
 
-            {/* Songs */}
-            <section style={{ marginBottom: '40px' }}>
-              <h2 style={sectionH}>Songs</h2>
-              {songs.length === 0 ? (
-                <div style={{ color: 'var(--cream-muted)', fontStyle: 'italic' }}>No public songs.</div>
-              ) : (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                  gap: '12px',
-                }}>
-                  {songs.map((s) => (
-                    <Link key={s.id} href={`/songs/${s.id}`} style={{ textDecoration: 'none' }}>
-                      <div style={{
-                        padding: '14px 18px',
-                        border: '1px solid var(--gold-border)',
-                        background: 'var(--bg-card)',
-                      }}>
-                        <div style={{
-                          fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                          fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>{s.title}</div>
-                        <div style={{
-                          fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                          fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--cream-muted)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>{s.artist}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section>
+            {/* Tab buttons */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px', marginBottom: '28px',
+            }}>
+              <TabCard
+                active={tab === 'songs'}
+                label="Songs"
+                count={songs.length}
+                onClick={() => { setTab(tab === 'songs' ? 'none' : 'songs'); setSongPage(1); }}
+              />
+              <TabCard
+                active={tab === 'playlists'}
+                label="Playlists"
+                count={playlists.length}
+                onClick={() => setTab(tab === 'playlists' ? 'none' : 'playlists')}
+              />
+            </div>
 
-            {/* Playlists */}
-            <section>
-              <h2 style={sectionH}>Playlists</h2>
-              {playlists.length === 0 ? (
-                <div style={{ color: 'var(--cream-muted)', fontStyle: 'italic' }}>No public playlists.</div>
-              ) : (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                  gap: '12px',
-                }}>
-                  {playlists.map((p) => (
-                    <div key={p.id} style={{
-                      padding: '14px 18px',
-                      border: '1px solid var(--gold-border)',
-                      background: 'var(--bg-card)',
-                    }}>
+            {/* Songs tab */}
+            {tab === 'songs' && (
+              <section>
+                {songs.length === 0 ? (
+                  <div style={{ color: 'var(--cream-muted)', fontStyle: 'italic' }}>No public songs.</div>
+                ) : (() => {
+                  const totalPages   = Math.max(1, Math.ceil(songs.length / SONGS_PER_PAGE));
+                  const safePage     = Math.min(songPage, totalPages);
+                  const visible      = songs.slice((safePage - 1) * SONGS_PER_PAGE, safePage * SONGS_PER_PAGE);
+                  return (
+                    <>
                       <div style={{
-                        fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                        fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
-                      }}>{p.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--cream-muted)', letterSpacing: '0.1em', marginTop: '4px' }}>
-                        {p.song_ids.length} {p.song_ids.length === 1 ? 'song' : 'songs'}
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                        gap: '12px',
+                      }}>
+                        {visible.map((s) => (
+                          <Link key={s.id} href={`/songs/${s.id}`} style={{ textDecoration: 'none' }}>
+                            <div style={{
+                              padding: '14px 18px',
+                              border: '1px solid var(--gold-border)',
+                              background: 'var(--bg-card)',
+                            }}>
+                              <div style={{
+                                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                                fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>{s.title}</div>
+                              <div style={{
+                                fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                                fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--cream-muted)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>{s.artist}</div>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                      {totalPages > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '28px' }}>
+                          <PgBtn disabled={safePage === 1} onClick={() => setSongPage((p) => Math.max(1, p - 1))}>← Prev</PgBtn>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                              <button key={p} onClick={() => setSongPage(p)} style={{
+                                width: '36px', height: '36px', cursor: 'pointer',
+                                border: `1px solid ${p === safePage ? 'var(--gold)' : 'var(--gold-border)'}`,
+                                background: p === safePage ? 'rgba(0,196,180,0.15)' : 'transparent',
+                                color: p === safePage ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                                fontSize: '0.85rem', fontWeight: p === safePage ? 700 : 400,
+                              }}>{p}</button>
+                            ))}
+                          </div>
+                          <PgBtn disabled={safePage === totalPages} onClick={() => setSongPage((p) => Math.min(totalPages, p + 1))}>Next →</PgBtn>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </section>
+            )}
+
+            {/* Playlists tab */}
+            {tab === 'playlists' && (
+              <section>
+                {playlists.length === 0 ? (
+                  <div style={{ color: 'var(--cream-muted)', fontStyle: 'italic' }}>No public playlists.</div>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                    gap: '12px',
+                  }}>
+                    {playlists.map((p) => (
+                      <Link key={p.id} href={`/playlists/${p.id}`} style={{ textDecoration: 'none' }}>
+                        <div style={{
+                          padding: '14px 18px',
+                          border: '1px solid var(--gold-border)',
+                          background: 'var(--bg-card)',
+                        }}>
+                          <div style={{
+                            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                            fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
+                          }}>{p.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--cream-muted)', letterSpacing: '0.1em', marginTop: '4px' }}>
+                            {p.song_ids.length} {p.song_ids.length === 1 ? 'song' : 'songs'}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>
@@ -213,8 +264,47 @@ const centerBox: React.CSSProperties = {
   border: '1px solid var(--gold-border)', background: 'var(--bg-surface)',
 };
 
-const sectionH: React.CSSProperties = {
-  fontFamily: 'var(--font-cormorant, Georgia, serif)',
-  fontSize: '1.4rem', fontWeight: 500, letterSpacing: '0.1em',
-  color: 'var(--gold)', margin: '0 0 14px',
-};
+function TabCard({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '22px 24px', cursor: 'pointer',
+        border: `1px solid ${active ? 'var(--gold)' : 'var(--gold-border-mid)'}`,
+        background: active ? 'linear-gradient(135deg, rgba(0,196,180,0.18), rgba(0,196,180,0.06))' : 'var(--bg-card)',
+        color: active ? 'var(--gold-bright)' : 'var(--cream-soft)',
+        transition: 'all 0.15s',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+      }}
+    >
+      <span style={{ fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: '0.8rem', letterSpacing: '0.2em',
+        color: active ? 'var(--gold-bright)' : 'var(--cream-muted)',
+      }}>
+        {count} · {active ? 'Close' : 'Open'}
+      </span>
+    </button>
+  );
+}
+
+function PgBtn({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick} disabled={disabled}
+      style={{
+        padding: '8px 18px', minHeight: '36px', cursor: disabled ? 'not-allowed' : 'pointer',
+        border: '1px solid var(--gold-border)',
+        background: 'transparent',
+        color: disabled ? 'var(--cream-muted)' : 'var(--cream-soft)',
+        fontSize: '0.85rem', letterSpacing: '0.1em',
+        opacity: disabled ? 0.4 : 1, fontFamily: 'var(--font-cormorant, Georgia, serif)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
