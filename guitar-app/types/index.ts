@@ -49,10 +49,11 @@ export interface Comment {
 
 export interface Notification {
   id: string;
-  type: 'follow' | string;
+  type: 'follow' | 'new_song' | string;
   actorId?: string;
   actorUsername?: string;
   songId?: string;
+  songTitle?: string;
   createdAt: string;
   readAt?: string;
 }

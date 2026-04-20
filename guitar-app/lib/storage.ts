@@ -417,11 +417,21 @@ export const loadNotifications = async (limit = 30): Promise<Notification[]> => 
   if (error) return [];
   const rows = data as NotificationRow[];
   const names = await usernameMap(rows.map((r) => r.actor_id));
+
+  // Fetch song titles for notifications that reference songs
+  const songIds = Array.from(new Set(rows.map((r) => r.song_id).filter((x): x is string => !!x)));
+  const titles = new Map<string, string>();
+  if (songIds.length > 0) {
+    const { data: ss } = await supabase.from('songs').select('id, title').in('id', songIds);
+    (ss ?? []).forEach((s) => titles.set(s.id, s.title));
+  }
+
   return rows.map((r) => ({
     id: r.id, type: r.type,
     actorId: r.actor_id ?? undefined,
     actorUsername: (r.actor_id && names.get(r.actor_id)) || undefined,
     songId: r.song_id ?? undefined,
+    songTitle: (r.song_id && titles.get(r.song_id)) || undefined,
     createdAt: r.created_at,
     readAt: r.read_at ?? undefined,
   }));

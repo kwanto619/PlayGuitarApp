@@ -100,32 +100,40 @@ export default function NotificationBell() {
               No notifications yet
             </div>
           ) : (
-            items.map((n) => (
-              <Link
-                key={n.id}
-                href={n.actorUsername ? `/u/${n.actorUsername}` : '#'}
-                onClick={() => setOpen(false)}
-                style={{ textDecoration: 'none', display: 'block' }}
-              >
-                <div style={{
-                  padding: '12px 14px',
-                  borderBottom: '1px solid var(--gold-border)',
-                  background: n.readAt ? 'transparent' : 'rgba(0,196,180,0.05)',
-                  display: 'flex', flexDirection: 'column', gap: '2px',
-                }}>
-                  <div style={{ fontSize: '0.92rem', color: 'var(--cream-soft)', fontFamily: 'var(--font-cormorant, Georgia, serif)' }}>
-                    {n.type === 'follow' ? (
-                      <><strong style={{ color: 'var(--gold-bright)' }}>@{n.actorUsername ?? 'someone'}</strong> started following you</>
-                    ) : (
-                      <>New activity from @{n.actorUsername ?? 'someone'}</>
-                    )}
+            items.map((n) => {
+              const href =
+                n.type === 'new_song' && n.songId ? `/songs/${n.songId}` :
+                n.actorUsername ? `/u/${n.actorUsername}` :
+                '#';
+              return (
+                <Link
+                  key={n.id}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  style={{ textDecoration: 'none', display: 'block' }}
+                >
+                  <div style={{
+                    padding: '12px 14px',
+                    borderBottom: '1px solid var(--gold-border)',
+                    background: n.readAt ? 'transparent' : 'rgba(0,196,180,0.05)',
+                    display: 'flex', flexDirection: 'column', gap: '2px',
+                  }}>
+                    <div style={{ fontSize: '0.92rem', color: 'var(--cream-soft)', fontFamily: 'var(--font-cormorant, Georgia, serif)' }}>
+                      {n.type === 'follow' ? (
+                        <><strong style={{ color: 'var(--gold-bright)' }}>@{n.actorUsername ?? 'someone'}</strong> started following you</>
+                      ) : n.type === 'new_song' ? (
+                        <><strong style={{ color: 'var(--gold-bright)' }}>@{n.actorUsername ?? 'someone'}</strong> uploaded <em>{n.songTitle ?? 'a song'}</em></>
+                      ) : (
+                        <>New activity from @{n.actorUsername ?? 'someone'}</>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--cream-muted)', letterSpacing: '0.1em' }}>
+                      {timeAgo(n.createdAt)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--cream-muted)', letterSpacing: '0.1em' }}>
-                    {timeAgo(n.createdAt)}
-                  </div>
-                </div>
-              </Link>
-            ))
+                </Link>
+              );
+            })
           )}
         </div>
       )}

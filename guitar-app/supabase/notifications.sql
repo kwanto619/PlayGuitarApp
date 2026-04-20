@@ -40,3 +40,21 @@ drop trigger if exists follows_notify_follow on follows;
 create trigger follows_notify_follow
   after insert on follows
   for each row execute function notify_follow();
+
+-- Trigger: new song → notification for every follower of the uploader
+create or replace function notify_new_song()
+returns trigger language plpgsql security definer as $$
+begin
+  if new.user_id is null then return new; end if;
+  insert into notifications (user_id, actor_id, type, song_id)
+  select f.follower_id, new.user_id, 'new_song', new.id
+  from follows f
+  where f.following_id = new.user_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists songs_notify_new on songs;
+create trigger songs_notify_new
+  after insert on songs
+  for each row execute function notify_new_song();
