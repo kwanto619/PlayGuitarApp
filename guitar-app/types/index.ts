@@ -47,6 +47,16 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface Notification {
+  id: string;
+  type: 'follow' | string;
+  actorId?: string;
+  actorUsername?: string;
+  songId?: string;
+  createdAt: string;
+  readAt?: string;
+}
+
 export interface Progression {
   id: string;
   name: string;

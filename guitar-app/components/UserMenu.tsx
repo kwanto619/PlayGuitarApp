@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import NotificationBell from './NotificationBell';
 
 export default function UserMenu() {
   const { user, username, signOut } = useAuth();
@@ -27,6 +28,7 @@ export default function UserMenu() {
       fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.8rem',
       letterSpacing: '0.18em', textTransform: 'uppercase',
     }}>
+      <NotificationBell />
       {username && (
         <Link
           href={`/u/${username}`}

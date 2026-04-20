@@ -103,11 +103,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     {profile.bio}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: '18px', marginTop: '12px', fontSize: '0.8rem', color: 'var(--cream-muted)', letterSpacing: '0.1em' }}>
+                <div style={{ display: 'flex', gap: '18px', marginTop: '12px', fontSize: '0.8rem', color: 'var(--cream-muted)', letterSpacing: '0.1em', flexWrap: 'wrap' }}>
                   <span><strong style={{ color: 'var(--gold)' }}>{songs.length}</strong> songs</span>
                   <span><strong style={{ color: 'var(--gold)' }}>{playlists.length}</strong> playlists</span>
-                  <span><strong style={{ color: 'var(--gold)' }}>{counts.followers}</strong> followers</span>
-                  <span><strong style={{ color: 'var(--gold)' }}>{counts.following}</strong> following</span>
+                  <Link href={`/u/${profile.username}/followers`} style={statLink}>
+                    <strong style={{ color: 'var(--gold)' }}>{counts.followers}</strong> followers
+                  </Link>
+                  <Link href={`/u/${profile.username}/following`} style={statLink}>
+                    <strong style={{ color: 'var(--gold)' }}>{counts.following}</strong> following
+                  </Link>
                 </div>
               </div>
               {!isOwn && user && (
@@ -255,6 +259,11 @@ const topBtn: React.CSSProperties = {
   border: '1px solid var(--gold-border-mid)',
   background: 'transparent', color: 'var(--cream-muted)',
   textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px',
+};
+
+const statLink: React.CSSProperties = {
+  color: 'var(--cream-muted)', textDecoration: 'none',
+  borderBottom: '1px dotted var(--gold-border)', paddingBottom: '1px',
 };
 
 const centerBox: React.CSSProperties = {

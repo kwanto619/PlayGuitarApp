@@ -1,4 +1,4 @@
-import { Song, Playlist, Progression, Profile, Comment } from '@/types';
+import { Song, Playlist, Progression, Profile, Comment, Notification } from '@/types';
 import { supabase } from './supabase';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -311,6 +311,22 @@ export const toggleFollow = async (userId: string): Promise<boolean> => {
   return true;
 };
 
+export const loadFollowers = async (userId: string): Promise<Profile[]> => {
+  const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId);
+  const ids = (data ?? []).map((r) => r.follower_id);
+  if (ids.length === 0) return [];
+  const { data: profs } = await supabase.from('profiles').select('*').in('id', ids);
+  return (profs ?? []).map((p) => ({ id: p.id, username: p.username, displayName: p.display_name ?? undefined, bio: p.bio ?? undefined }));
+};
+
+export const loadFollowing = async (userId: string): Promise<Profile[]> => {
+  const { data } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
+  const ids = (data ?? []).map((r) => r.following_id);
+  if (ids.length === 0) return [];
+  const { data: profs } = await supabase.from('profiles').select('*').in('id', ids);
+  return (profs ?? []).map((p) => ({ id: p.id, username: p.username, displayName: p.display_name ?? undefined, bio: p.bio ?? undefined }));
+};
+
 export const loadFollowCounts = async (userId: string): Promise<{ followers: number; following: number }> => {
   const [fRes, gRes] = await Promise.all([
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
@@ -322,12 +338,30 @@ export const loadFollowCounts = async (userId: string): Promise<{ followers: num
 export const loadFeed = async (): Promise<Song[]> => {
   const uid = await currentUserId();
   if (!uid) return [];
-  const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', uid);
-  const ids = (follows ?? []).map((r) => r.following_id);
-  if (ids.length === 0) return [];
-  const { data, error } = await supabase.from('songs').select('*').in('user_id', ids).order('created_at', { ascending: false }).limit(60);
-  if (error) return [];
-  return attachSongUsernames(data as SongRow[]);
+  const { data: follows } = await supabase
+    .from('follows')
+    .select('following_id, created_at')
+    .eq('follower_id', uid);
+  const rows = follows ?? [];
+  if (rows.length === 0) return [];
+
+  // One query per followed user — only songs uploaded after the follow started
+  const perUser = await Promise.all(
+    rows.map(async (f) => {
+      const { data } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('user_id', f.following_id)
+        .gt('created_at', f.created_at)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      return (data ?? []) as SongRow[];
+    })
+  );
+  const merged = perUser.flat()
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    .slice(0, 60);
+  return attachSongUsernames(merged);
 };
 
 // ── Comments ──────────────────────────────────────────────────────────────────
@@ -363,4 +397,49 @@ export const addComment = async (songId: string, body: string): Promise<void> =>
 export const deleteComment = async (id: string): Promise<void> => {
   const { error } = await supabase.from('comments').delete().eq('id', id);
   if (error) throw new Error(error.message);
+};
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+type NotificationRow = {
+  id: string; type: string; actor_id: string | null;
+  song_id: string | null; created_at: string; read_at: string | null;
+};
+
+export const loadNotifications = async (limit = 30): Promise<Notification[]> => {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  const rows = data as NotificationRow[];
+  const names = await usernameMap(rows.map((r) => r.actor_id));
+  return rows.map((r) => ({
+    id: r.id, type: r.type,
+    actorId: r.actor_id ?? undefined,
+    actorUsername: (r.actor_id && names.get(r.actor_id)) || undefined,
+    songId: r.song_id ?? undefined,
+    createdAt: r.created_at,
+    readAt: r.read_at ?? undefined,
+  }));
+};
+
+export const countUnreadNotifications = async (): Promise<number> => {
+  const uid = await currentUserId();
+  if (!uid) return 0;
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', uid)
+    .is('read_at', null);
+  return count ?? 0;
+};
+
+export const markAllNotificationsRead = async (): Promise<void> => {
+  const uid = await currentUserId();
+  if (!uid) return;
+  await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null);
 };
