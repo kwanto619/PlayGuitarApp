@@ -12,6 +12,7 @@ import FavoriteButton from '@/components/FavoriteButton';
 import Comments from '@/components/Comments';
 import { exportSongPdf } from '@/lib/pdf';
 import { useAuth } from '@/lib/auth';
+import Flag from '@/components/Flag';
 
 // ── Shared style helpers ────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
@@ -85,7 +86,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
             transition: 'all 0.15s',
           }}
         >
-          {lang === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+          <Flag lang={lang} withLabel />
         </button>
       ))}
     </div>
@@ -174,10 +175,12 @@ function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
 }
 
 const scrollNudge: React.CSSProperties = {
-  width: '28px', height: '28px', cursor: 'pointer',
-  border: '1px solid var(--gold-border)',
-  background: 'transparent', color: 'var(--cream-muted)',
-  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  minWidth: '40px', height: '40px', padding: '0 10px',
+  cursor: 'pointer',
+  border: '1px solid var(--gold-border-mid)',
+  background: 'rgba(0,196,180,0.08)', color: 'var(--gold-bright)',
+  fontSize: '1.1rem', fontWeight: 600,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };
 
@@ -217,6 +220,16 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   });
   const [lyricsFullscreen, setLyricsFullscreen] = useState(false);
   const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
+
+  // Lock body scroll while fullscreen overlay is open so the underlying sticky
+  // top bar can't peek through and create a "double navbar" look.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (lyricsFullscreen) {
+      document.body.classList.add('scroll-locked');
+      return () => document.body.classList.remove('scroll-locked');
+    }
+  }, [lyricsFullscreen]);
   const [showVideoUrlInput, setShowVideoUrlInput] = useState(false);
   const [videoUrlDraft, setVideoUrlDraft] = useState('');
   const [searchingVideo, setSearchingVideo] = useState(false);
@@ -307,17 +320,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     } catch { alert('Failed to delete.'); }
   };
 
-  const handleSaveTransposed = async () => {
-    if (!song || transposeOffset === 0) return;
-    const newChords = transposeChords(song.chords, transposeOffset);
-    const updated = { ...song, chords: newChords };
-    try {
-      await updateSong(song.id, updated);
-      setSong(updated);
-      setTransposeOffset(0);
-    } catch { alert('Failed to save transposed chords.'); }
-  };
-
   const handleSaveBpm = async (bpm: number | undefined) => {
     if (!song) return;
     setSavingBpm(true);
@@ -398,7 +400,15 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!editMode && <FavoriteButton songId={id} />}
           {!editMode && song && (
-            <ActionBtn onClick={() => exportSongPdf(song)}>PDF</ActionBtn>
+            <ActionBtn onClick={() => exportSongPdf(song)} prominent title="Download song as PDF">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                <path d="M14 3v5h5" />
+                <path d="M12 12v6" />
+                <path d="m9 15 3 3 3-3" />
+              </svg>
+              PDF
+            </ActionBtn>
           )}
           {editMode ? (
             <>
@@ -451,7 +461,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 marginBottom: '14px',
               }}>
-                {song.language === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+                <Flag lang={song.language} withLabel />
               </div>
 
               {/* Uploader attribution */}
@@ -698,8 +708,9 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {displayChords.map((chord, idx) => (
                       <ChordTooltip key={idx} name={chord}>
-                        <span style={{
-                          display: 'inline-block',
+                        <span className="chord-chip" style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           padding: '8px 16px',
                           border: '1px solid var(--gold-border-mid)',
                           background: 'rgba(0,196,180,0.1)',
@@ -716,22 +727,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                     ))}
                   </div>
 
-                  {/* Save transposed */}
-                  {transposeOffset !== 0 && (
-                    <button
-                      onClick={handleSaveTransposed}
-                      style={{
-                        marginTop: '12px',
-                        padding: '8px 16px', fontSize: '0.7rem', letterSpacing: '0.2em',
-                        textTransform: 'uppercase', cursor: 'pointer',
-                        border: '1px solid var(--gold-border-mid)',
-                        background: 'rgba(0,196,180,0.1)', color: 'var(--gold-bright)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      Save transposed chords
-                    </button>
-                  )}
                 </section>
               )}
 
@@ -761,16 +756,25 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                     <div style={labelStyle}>Lyrics</div>
                     <button
                       onClick={() => setLyricsFullscreen(true)}
+                      title="Expand lyrics fullscreen"
                       style={{
-                        padding: '5px 12px',
-                        fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                        padding: '10px 18px', minHeight: '44px',
+                        fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase',
                         fontFamily: 'var(--font-cormorant, Georgia, serif)',
                         cursor: 'pointer',
-                        border: '1px solid var(--gold-border)',
-                        background: 'transparent', color: 'var(--cream-muted)',
+                        border: '1px solid var(--gold-border-mid)',
+                        background: 'linear-gradient(135deg, rgba(0,130,120,0.35), rgba(0,90,83,0.15))',
+                        color: 'var(--gold-bright)',
                         transition: 'all 0.15s',
                       }}
                     >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M15 3h6v6" />
+                        <path d="M9 21H3v-6" />
+                        <path d="M21 3 14 10" />
+                        <path d="M3 21l7-7" />
+                      </svg>
                       Expand
                     </button>
                   </div>
@@ -786,28 +790,27 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                     overflowX: 'auto',
                     WebkitOverflowScrolling: 'touch',
                   }}>
-                    {parseLyrics(song.lyrics).map((seg, i) =>
-                      seg.type === 'chord' ? (
-                        <ChordTooltip key={i} name={transposeOffset !== 0
-                          ? transposeChords([seg.content], transposeOffset)[0]
-                          : seg.content
-                        }>
-                          <span style={{
+                    {parseLyrics(song.lyrics).map((seg, i) => {
+                      if (seg.type !== 'chord') return <span key={i}>{seg.content}</span>;
+                      const rendered = transposeOffset !== 0
+                        ? transposeChords([seg.content], transposeOffset)[0]
+                        : seg.content;
+                      const slotLen = Math.max(seg.content.length, rendered.length);
+                      return (
+                        <ChordTooltip key={i} name={rendered}>
+                          <span className="chord-inline" style={{
                             color: 'var(--gold-bright)',
                             fontWeight: 600,
                             cursor: 'default',
                             borderBottom: '1px dashed rgba(0,196,180,0.45)',
                             paddingBottom: '1px',
+                            width: `${slotLen}ch`,
                           }}>
-                            {transposeOffset !== 0
-                              ? transposeChords([seg.content], transposeOffset)[0]
-                              : seg.content}
+                            {rendered}
                           </span>
                         </ChordTooltip>
-                      ) : (
-                        <span key={i}>{seg.content}</span>
-                      )
-                    )}
+                      );
+                    })}
                   </pre>
                 </>
               ) : (
@@ -832,9 +835,8 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
       {/* Fullscreen lyrics overlay */}
       {lyricsFullscreen && song.lyrics && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(6,6,6,0.96)',
-          backdropFilter: 'blur(12px)',
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'var(--bg-deep)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
         }}>
@@ -902,28 +904,27 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
               margin: 0, lineHeight: 2.0,
               overflowX: 'auto',
             }}>
-              {parseLyrics(song.lyrics).map((seg, i) =>
-                seg.type === 'chord' ? (
-                  <ChordTooltip key={i} name={transposeOffset !== 0
-                    ? transposeChords([seg.content], transposeOffset)[0]
-                    : seg.content
-                  }>
-                    <span style={{
+              {parseLyrics(song.lyrics).map((seg, i) => {
+                if (seg.type !== 'chord') return <span key={i}>{seg.content}</span>;
+                const rendered = transposeOffset !== 0
+                  ? transposeChords([seg.content], transposeOffset)[0]
+                  : seg.content;
+                const slotLen = Math.max(seg.content.length, rendered.length);
+                return (
+                  <ChordTooltip key={i} name={rendered}>
+                    <span className="chord-inline" style={{
                       color: 'var(--gold-bright)',
                       fontWeight: 600,
                       cursor: 'default',
                       borderBottom: '1px dashed rgba(0,196,180,0.45)',
                       paddingBottom: '1px',
+                      width: `${slotLen}ch`,
                     }}>
-                      {transposeOffset !== 0
-                        ? transposeChords([seg.content], transposeOffset)[0]
-                        : seg.content}
+                      {rendered}
                     </span>
                   </ChordTooltip>
-                ) : (
-                  <span key={i}>{seg.content}</span>
-                )
-              )}
+                );
+              })}
             </pre>
           </div>
         </div>
@@ -956,10 +957,12 @@ const backBtnStyle: React.CSSProperties = {
 };
 
 const transBtn: React.CSSProperties = {
-  width: '28px', height: '28px', cursor: 'pointer',
-  border: '1px solid var(--gold-border)',
-  background: 'transparent', color: 'var(--cream-muted)',
-  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  minWidth: '40px', height: '40px', padding: '0 10px',
+  cursor: 'pointer',
+  border: '1px solid var(--gold-border-mid)',
+  background: 'rgba(0,196,180,0.08)', color: 'var(--gold-bright)',
+  fontSize: '1.1rem', fontWeight: 600,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };
 
@@ -981,24 +984,28 @@ const nudgeSm: React.CSSProperties = {
   transition: 'all 0.15s',
 };
 
-function ActionBtn({ onClick, children, gold, danger }: {
-  onClick: () => void; children: React.ReactNode; gold?: boolean; danger?: boolean;
+function ActionBtn({ onClick, children, gold, danger, prominent, title }: {
+  onClick: () => void; children: React.ReactNode;
+  gold?: boolean; danger?: boolean; prominent?: boolean; title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       style={{
-        padding: '10px 20px',
+        display: 'inline-flex', alignItems: 'center', gap: '8px',
+        padding: prominent ? '11px 22px' : '10px 20px',
         fontFamily: 'var(--font-cormorant, Georgia, serif)',
-        fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.2em',
+        fontSize: prominent ? '0.92rem' : '0.85rem', fontWeight: 600, letterSpacing: '0.2em',
         textTransform: 'uppercase', cursor: 'pointer',
         border: danger ? '1px solid rgba(224,72,72,0.45)'
-               : gold  ? '1px solid var(--gold-border-mid)'
+               : gold || prominent ? '1px solid var(--gold-border-mid)'
                :         '1px solid var(--gold-border)',
         background: danger ? 'rgba(224,72,72,0.08)'
+                  : prominent ? 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))'
                   : gold   ? 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))'
                   :          'transparent',
-        color: danger ? 'var(--red-tuning)' : gold ? 'var(--gold-bright)' : 'var(--cream-muted)',
+        color: danger ? 'var(--red-tuning)' : (gold || prominent) ? 'var(--gold-bright)' : 'var(--cream-muted)',
         transition: 'all 0.15s',
         minHeight: '44px',
       }}

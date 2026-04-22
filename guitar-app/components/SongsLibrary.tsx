@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
 import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
+import Flag from './Flag';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -70,7 +71,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
             transition: 'all 0.15s',
           }}
         >
-          {lang === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+          <Flag lang={lang} withLabel />
         </button>
       ))}
     </div>
@@ -315,7 +316,13 @@ export default function SongsLibrary() {
       {/* ── Language filter ── */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
-          {([['all', 'All Songs'], ['greek', '🇬🇷 Greek'], ['english', '🇬🇧 English']] as const).map(([val, label], i) => {
+          {(
+            [
+              ['all',     <>All Songs</>],
+              ['greek',   <Flag key="gr" lang="greek" withLabel />],
+              ['english', <Flag key="gb" lang="english" withLabel />],
+            ] as const
+          ).map(([val, label], i) => {
             const isActive = languageFilter === val;
             return (
               <button

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { addSong } from '@/lib/storage';
 import { Song } from '@/types';
+import Flag from './Flag';
 
 interface ParsedSong {
   title: string;
@@ -471,7 +472,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
           color: value === lang ? 'var(--gold-bright)' : 'var(--cream-muted)',
           transition: 'all 0.15s',
         }}>
-          {lang === 'greek' ? '🇬🇷 Greek' : '🇬🇧 English'}
+          <Flag lang={lang} withLabel />
         </button>
       ))}
     </div>
