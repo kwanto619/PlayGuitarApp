@@ -44,40 +44,49 @@ export default function UserMenu() {
   }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '10px',
-      fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.8rem',
-      letterSpacing: '0.18em', textTransform: 'uppercase',
+    <div className="user-menu" style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: '8px', flexWrap: 'wrap', rowGap: '8px',
+      width: '100%', maxWidth: '100%',
+      fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.78rem',
+      letterSpacing: '0.16em', textTransform: 'uppercase',
     }}>
       <NotificationBell />
       {username && (
         <Link
           href={`/u/${username}`}
           title={`@${username}`}
+          className="um-username"
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            padding: '8px 14px',
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            padding: '7px 12px', flex: '0 1 auto', minWidth: 0,
+            maxWidth: '100%',
             border: '1px solid var(--gold-border-mid)',
-            background: 'linear-gradient(135deg, rgba(0,130,120,0.25), rgba(0,90,83,0.15))',
+            background: 'linear-gradient(135deg, rgba(0,130,120,0.3), rgba(0,90,83,0.15))',
             color: 'var(--gold-bright)', textDecoration: 'none',
           }}
         >
-          <UserIcon />
-          <span className="um-label">@{username}</span>
+          <UserIcon size={16} />
+          <span className="um-label" style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+          }}>@{username}</span>
         </Link>
       )}
       <button
         onClick={signOut}
         title="Sign out"
+        className="um-signout"
         style={{
-          padding: '8px 14px', cursor: 'pointer',
-          border: '1px solid var(--gold-border)', background: 'transparent',
-          color: 'var(--cream-muted)',
+          padding: '7px 12px', cursor: 'pointer', flex: '0 0 auto',
+          border: '1px solid var(--gold-border-mid)',
+          background: 'rgba(224,72,72,0.08)',
+          color: '#ff8080',
           fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
           display: 'inline-flex', alignItems: 'center', gap: '6px',
+          fontWeight: 600,
         }}
       >
-        <svg className="um-signout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg className="um-signout-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <polyline points="16 17 21 12 16 7" />
           <line x1="21" y1="12" x2="9" y2="12" />

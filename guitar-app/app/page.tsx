@@ -382,10 +382,11 @@ export default function Home() {
 
         <div style={{
           position: 'relative',
-          display: 'inline-flex', alignItems: 'center', gap: 'clamp(14px, 2vw, 22px)',
+          display: 'inline-flex', alignItems: 'center', gap: 'clamp(16px, 2.4vw, 26px)',
+          justifyContent: 'center',
         }}>
           {/* Logo mark */}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="44" height="44">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="60" height="60">
             <defs>
               <filter id="logo-glow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
@@ -409,17 +410,17 @@ export default function Home() {
 
           <div style={{ textAlign: 'left' }}>
             <div style={{
-              fontSize: '0.55rem', letterSpacing: '0.45em', color: 'var(--gold-dim)',
-              textTransform: 'uppercase', marginBottom: '2px',
+              fontSize: '0.7rem', letterSpacing: '0.45em', color: 'var(--gold-dim)',
+              textTransform: 'uppercase', marginBottom: '4px',
             }}>
               Guitar Companion
             </div>
             <h1 style={{
-              fontSize: 'clamp(1.6rem, 3.4vw, 2.6rem)',
+              fontSize: 'clamp(2.4rem, 5vw, 4rem)',
               fontWeight: 700,
               letterSpacing: '-0.01em',
               margin: 0,
-              lineHeight: 1.05,
+              lineHeight: 1.02,
               background: 'linear-gradient(135deg, #ffffff 30%, var(--gold-bright) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',

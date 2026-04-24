@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import SongsFlyoutNav from './SongsFlyoutNav';
-import GlobalSearch from './GlobalSearch';
 
 // Routes that render WITHOUT the sidebar/search chrome.
 const BARE_ROUTES = ['/auth'];
@@ -16,7 +15,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell-root">
       <SongsFlyoutNav />
-      <GlobalSearch />
       <main className="app-shell-main">
         {children}
       </main>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FiMenu, FiX, FiArrowRight, FiMusic, FiGrid, FiHeart, FiRss, FiHome,
-  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity,
+  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import UserMenu from './UserMenu';
@@ -29,7 +29,8 @@ const ITEMS: Item[] = [
       { kind: 'leaf', href: '/scales',       label: 'Scales',       Icon: FiActivity, desc: 'Pentatonic & blues' },
     ],
   },
-  { kind: 'leaf', href: '/feed', label: 'Feed', Icon: FiRss, desc: 'People you follow' },
+  { kind: 'leaf', href: '/feed',   label: 'Feed',         Icon: FiRss,    desc: 'People you follow' },
+  { kind: 'leaf', href: '/search', label: 'Find Members', Icon: FiSearch, desc: 'Discover players' },
 ];
 
 export default function SongsFlyoutNav() {
