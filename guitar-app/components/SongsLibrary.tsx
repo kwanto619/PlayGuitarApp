@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong, exportSongs, importSongs } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, updateSong } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
 import Flag from './Flag';
 
@@ -119,7 +119,6 @@ export default function SongsLibrary() {
   const [search,         setSearch]         = useState(searchParams.get('q') || '');
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   const [page,           setPage]           = useState(initialPage);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const PAGE_SIZE = 15;
 
   // Keep URL in sync with filter/page/search so back-nav restores state
@@ -173,21 +172,6 @@ export default function SongsLibrary() {
     } catch { alert('Failed to delete song. Please try again.'); }
   };
 
-  const handleExportSongs = async () => {
-    try { await exportSongs(); } catch { alert('Failed to export songs.'); }
-  };
-
-  const handleImportSongs = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const imported = await importSongs(file);
-      setSongs(imported);
-      alert(`Imported ${imported.length} songs.`);
-    } catch { alert('Failed to import songs. Check the file format.'); }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   const filteredSongs = songs.filter((s) => {
     if (languageFilter !== 'all' && s.language !== languageFilter) return false;
     if (search.trim()) {
@@ -221,34 +205,6 @@ export default function SongsLibrary() {
         <PrimaryBtn onClick={() => setShowAddForm(!showAddForm)}>
           {showAddForm ? '✕ Cancel' : '+ Add Song'}
         </PrimaryBtn>
-
-        <button
-          onClick={handleExportSongs}
-          style={{
-            padding: '12px 24px',
-            fontFamily: 'var(--font-cormorant, Georgia, serif)',
-            fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
-            textTransform: 'uppercase', cursor: 'pointer',
-            border: '1px solid rgba(68,136,204,0.4)',
-            background: 'rgba(68,136,204,0.08)', color: 'var(--blue-tuning)',
-            transition: 'all 0.18s',
-          }}
-        >
-          ⬇ Export
-        </button>
-
-        <label style={{
-          padding: '12px 24px',
-          fontFamily: 'var(--font-cormorant, Georgia, serif)',
-          fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.18em',
-          textTransform: 'uppercase', cursor: 'pointer',
-          border: '1px solid rgba(80,232,128,0.3)',
-          background: 'rgba(80,232,128,0.07)', color: 'var(--phosphor)',
-          transition: 'all 0.18s',
-        }}>
-          ⬆ Import
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportSongs} style={{ display: 'none' }} />
-        </label>
       </div>
 
       {/* ── Add form ── */}
