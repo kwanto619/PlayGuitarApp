@@ -6,6 +6,7 @@ import type { Profile, Song, Playlist } from '@/types';
 import {
   loadProfile, loadSongsByUser, loadPlaylistsByUser,
   loadFollowCounts, isFollowing, toggleFollow,
+  clonePlaylist, hasClonedPlaylist,
 } from '@/lib/storage';
 import { useAuth } from '@/lib/auth';
 
@@ -221,25 +222,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 ) : (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
                     gap: '12px',
                   }}>
                     {playlists.map((p) => (
-                      <Link key={p.id} href={`/playlists/${p.id}`} style={{ textDecoration: 'none' }}>
-                        <div style={{
-                          padding: '14px 18px',
-                          border: '1px solid var(--gold-border)',
-                          background: 'var(--bg-card)',
-                        }}>
-                          <div style={{
-                            fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                            fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
-                          }}>{p.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--cream-muted)', letterSpacing: '0.1em', marginTop: '4px' }}>
-                            {p.song_ids.length} {p.song_ids.length === 1 ? 'song' : 'songs'}
-                          </div>
-                        </div>
-                      </Link>
+                      <ProfilePlaylistCard key={p.id} playlist={p} isOwn={isOwn} signedIn={!!user} />
                     ))}
                   </div>
                 )}
@@ -297,6 +284,73 @@ function TabCard({ active, label, count, onClick }: { active: boolean; label: st
         {count} · {active ? 'Close' : 'Open'}
       </span>
     </button>
+  );
+}
+
+function ProfilePlaylistCard({ playlist, isOwn, signedIn }: { playlist: Playlist; isOwn: boolean; signedIn: boolean }) {
+  const [already, setAlready] = useState(false);
+  const [busy, setBusy]       = useState(false);
+  const [done, setDone]       = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!signedIn || isOwn) return;
+    hasClonedPlaylist(playlist.id).then((v) => { setAlready(v); setChecked(true); });
+  }, [playlist.id, signedIn, isOwn]);
+
+  const onClone = async (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (busy || already || done) return;
+    setBusy(true);
+    try {
+      await clonePlaylist(playlist);
+      setDone(true);
+    } catch (err) {
+      alert((err as Error).message);
+    }
+    setBusy(false);
+  };
+
+  const canClone = signedIn && !isOwn;
+
+  return (
+    <div style={{
+      padding: '14px 18px',
+      border: '1px solid var(--gold-border)',
+      background: 'var(--bg-card)',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+    }}>
+      <Link href={`/playlists/${playlist.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+        <div style={{
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.1rem', fontWeight: 600, color: 'var(--gold)',
+        }}>{playlist.name}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--cream-muted)', letterSpacing: '0.1em', marginTop: '4px' }}>
+          {playlist.song_ids.length} {playlist.song_ids.length === 1 ? 'song' : 'songs'}
+        </div>
+      </Link>
+
+      {canClone && (
+        <button
+          onClick={onClone}
+          disabled={busy || already || done}
+          style={{
+            padding: '8px 12px', minHeight: '36px',
+            fontFamily: 'var(--font-cormorant, Georgia, serif)',
+            fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.18em',
+            textTransform: 'uppercase', cursor: (busy || already || done) ? 'default' : 'pointer',
+            border: `1px solid ${(already || done) ? 'var(--gold-border)' : 'var(--gold-border-mid)'}`,
+            background: (already || done)
+              ? 'rgba(0,196,180,0.05)'
+              : 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+            color: (already || done) ? 'var(--cream-muted)' : 'var(--gold-bright)',
+            transition: 'all 0.15s',
+          }}
+        >
+          {busy ? 'Adding…' : (already || done) ? (checked || done ? '✓ Added' : 'Added') : '＋ Add to My Playlists'}
+        </button>
+      )}
+    </div>
   );
 }
 

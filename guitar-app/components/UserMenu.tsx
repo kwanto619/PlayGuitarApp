@@ -63,19 +63,26 @@ export default function UserMenu() {
           }}
         >
           <UserIcon />
-          <span>@{username}</span>
+          <span className="um-label">@{username}</span>
         </Link>
       )}
       <button
         onClick={signOut}
+        title="Sign out"
         style={{
           padding: '8px 14px', cursor: 'pointer',
           border: '1px solid var(--gold-border)', background: 'transparent',
           color: 'var(--cream-muted)',
           fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
         }}
       >
-        Sign out
+        <svg className="um-signout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        <span className="um-signout-text">Sign out</span>
       </button>
     </div>
   );

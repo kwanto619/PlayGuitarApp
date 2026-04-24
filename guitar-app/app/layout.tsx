@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import SmoothScroll from "@/components/SmoothScroll";
 import ScrollToTop from "@/components/ScrollToTop";
+import AppShell from "@/components/AppShell";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space",
@@ -44,12 +45,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${fontCormorantAlias.variable} ${ibmMono.variable} antialiased`}>
+    <html lang="en" style={{ background: '#000', color: '#f0f0f0', colorScheme: 'dark' }}>
+      <body
+        className={`${spaceGrotesk.variable} ${fontCormorantAlias.variable} ${ibmMono.variable} antialiased`}
+        style={{ background: '#000', color: '#f0f0f0' }}
+      >
         <AuthProvider>
           <SmoothScroll />
           <ScrollToTop />
-          {children}
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

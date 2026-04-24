@@ -1,32 +1,32 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
 
-@layer base {
-  :root {
-    /* Backgrounds — pure blacks */
-    --bg-deep:         #000000;
-    --bg-base:         #060606;
-    --bg-surface:      #0d0d0d;
-    --bg-card:         #111111;
-    --bg-input:        #080808;
+:root {
+  /* Backgrounds — pure blacks */
+  --bg-deep:         #000000;
+  --bg-base:         #060606;
+  --bg-surface:      #0d0d0d;
+  --bg-card:         #111111;
+  --bg-input:        #080808;
 
-    /* Teal accent (reuses --gold names so all components update automatically) */
-    --gold:            #00c4b4;
-    --gold-bright:     #00e8d5;
-    --gold-dim:        #006b63;
-    --gold-border:     #0a2420;
-    --gold-border-mid: #0f3530;
+  /* Teal accent (reuses --gold names so all components update automatically) */
+  --gold:            #00c4b4;
+  --gold-bright:     #00e8d5;
+  --gold-dim:        #006b63;
+  --gold-border:     #0a2420;
+  --gold-border-mid: #0f3530;
 
-    /* Text — white scale */
-    --cream:           #f0f0f0;
-    --cream-soft:      #9a9a9a;
-    --cream-muted:     #484848;
+  /* Text — white scale */
+  --cream:           #f0f0f0;
+  --cream-soft:      #9a9a9a;
+  --cream-muted:     #484848;
 
-    /* Utility */
-    --phosphor:        #00e8d5;
-    --red-tuning:      #ff4d4d;
-    --blue-tuning:     #4488cc;
-  }
+  /* Utility */
+  --phosphor:        #00e8d5;
+  --red-tuning:      #ff4d4d;
+  --blue-tuning:     #4488cc;
+
+  color-scheme: dark;
 }
 
 /* Lenis owns smooth scroll on >= 768px; keep native smooth for mobile only */
@@ -72,13 +72,16 @@ html.lenis, html.lenis body { height: auto; }
 /* Body scroll lock when a fullscreen overlay is open */
 body.scroll-locked { overflow: hidden; }
 
-body {
+html, body {
   background-color: var(--bg-deep);
   color: var(--cream);
+}
+body {
   font-family: var(--font-space, system-ui, sans-serif);
   margin: 0;
   -webkit-font-smoothing: antialiased;
 }
+a { color: inherit; text-decoration: inherit; }
 
 /* Teal ambient glow from top */
 body::before {

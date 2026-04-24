@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { chords } from '@/data/chords';
-import { Chord } from '@/types';
+import { buildVoicings } from '@/data/voicings';
+import { Chord, Voicing } from '@/types';
 import ChordDiagram from './ChordDiagram';
 
 const filterTypes = ['all', 'major', 'minor', '7th', 'maj7', 'm7', 'dim', 'aug', 'sus2', 'sus4', 'add9'] as const;
@@ -32,14 +33,14 @@ export default function ChordsLibrary() {
     return matchesFilter && matchesSearch;
   });
 
-  const playChord = (chord: Chord) => {
+  const playVoicing = (v: Voicing) => {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const audioContext = new AC();
     const openStringFrequencies = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
     const now = audioContext.currentTime;
     const duration = 2.0;
 
-    chord.strings.forEach((fret, stringIndex) => {
+    v.strings.forEach((fret, stringIndex) => {
       if (fret === 'x') return;
       const fretNumber = fret === 'o' ? 0 : fret;
       const frequency = openStringFrequencies[stringIndex] * Math.pow(2, fretNumber / 12);
@@ -111,16 +112,17 @@ export default function ChordsLibrary() {
                 padding: '10px 16px',
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: '0.82rem',
-                fontWeight: isActive ? 600 : 400,
+                fontWeight: isActive ? 700 : 600,
                 letterSpacing: '0.15em',
                 textTransform: 'uppercase',
                 cursor: 'pointer',
-                border: `1px solid ${isActive ? 'var(--gold)' : 'var(--gold-border)'}`,
+                border: `1px solid ${isActive ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
                 transition: 'all 0.15s',
                 background: isActive
-                  ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))'
-                  : 'transparent',
-                color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                  ? 'linear-gradient(135deg, rgba(0,232,213,0.22), rgba(0,196,180,0.1))'
+                  : 'rgba(0,196,180,0.06)',
+                color: isActive ? 'var(--gold-bright)' : 'var(--cream)',
+                boxShadow: isActive ? '0 0 16px rgba(0,232,213,0.25)' : 'none',
                 minHeight: '44px',
               }}
             >
@@ -138,7 +140,7 @@ export default function ChordsLibrary() {
           gap: '20px',
         }}>
           {filteredChords.map((chord) => (
-            <ChordCard key={chord.name} chord={chord} onPlay={playChord} />
+            <ChordCard key={chord.name} chord={chord} onPlay={playVoicing} />
           ))}
         </div>
       ) : (
@@ -157,8 +159,15 @@ export default function ChordsLibrary() {
   );
 }
 
-function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void }) {
+function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (v: Voicing) => void }) {
   const [hovered, setHovered] = useState(false);
+  const [voicingIdx, setVoicingIdx] = useState(0);
+
+  const voicings = useMemo(() => buildVoicings(chord), [chord]);
+  const active = voicings[Math.min(voicingIdx, voicings.length - 1)];
+
+  // Render ChordDiagram using the active voicing values
+  const diagramChord: Chord = { ...chord, strings: active.strings, fingers: active.fingers, baseFret: active.baseFret };
 
   return (
     <div
@@ -171,7 +180,7 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '12px',
+        gap: '10px',
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-3px)' : 'none',
         boxShadow: hovered
@@ -194,12 +203,51 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (c: Chord) => void
         {chord.name}
       </h3>
 
+      {/* Voicing label */}
+      <div style={{
+        fontSize: '0.58rem', letterSpacing: '0.28em',
+        textTransform: 'uppercase',
+        color: 'var(--gold-dim)',
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+      }}>
+        {active.label}
+      </div>
+
       {/* Diagram */}
-      <ChordDiagram chord={chord} />
+      <ChordDiagram chord={diagramChord} />
+
+      {/* Voicing selector */}
+      {voicings.length > 1 && (
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {voicings.map((v, i) => {
+            const isActive = i === voicingIdx;
+            return (
+              <button
+                key={i}
+                onClick={() => setVoicingIdx(i)}
+                title={v.label}
+                style={{
+                  width: '28px', height: '28px',
+                  fontSize: '0.7rem', fontWeight: 700,
+                  cursor: 'pointer',
+                  border: `1px solid ${isActive ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
+                  background: isActive
+                    ? 'linear-gradient(135deg, rgba(0,232,213,0.22), rgba(0,196,180,0.08))'
+                    : 'rgba(0,196,180,0.04)',
+                  color: isActive ? 'var(--gold-bright)' : 'var(--cream-soft)',
+                  transition: 'all 0.12s',
+                }}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Play button */}
       <button
-        onClick={() => onPlay(chord)}
+        onClick={() => onPlay(active)}
         style={{
           width: '100%',
           padding: '12px 0',

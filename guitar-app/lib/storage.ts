@@ -142,6 +142,8 @@ export const importSongs = async (file: File): Promise<Song[]> => {
 type PlaylistRow = {
   id: string; name: string; song_ids: string[] | null;
   user_id: string | null; is_public: boolean | null;
+  cloned_from_user_id?: string | null;
+  cloned_from_playlist_id?: string | null;
 };
 
 function mapPlaylist(p: PlaylistRow, names?: Map<string, string>): Playlist {
@@ -150,11 +152,15 @@ function mapPlaylist(p: PlaylistRow, names?: Map<string, string>): Playlist {
     userId: p.user_id ?? undefined,
     ownerUsername: (p.user_id && names?.get(p.user_id)) || undefined,
     isPublic: p.is_public ?? undefined,
+    clonedFromUserId: p.cloned_from_user_id ?? undefined,
+    clonedFromUsername: (p.cloned_from_user_id && names?.get(p.cloned_from_user_id)) || undefined,
+    clonedFromPlaylistId: p.cloned_from_playlist_id ?? undefined,
   };
 }
 
 async function attachPlaylistUsernames(rows: PlaylistRow[]): Promise<Playlist[]> {
-  const names = await usernameMap(rows.map((r) => r.user_id));
+  const ids = rows.flatMap((r) => [r.user_id, r.cloned_from_user_id ?? null]);
+  const names = await usernameMap(ids);
   return rows.map((r) => mapPlaylist(r, names));
 }
 
@@ -197,26 +203,87 @@ export const deletePlaylist = async (id: string): Promise<Playlist[]> => {
   return loadPlaylists();
 };
 
+// Clone another user's playlist into the signed-in user's library.
+// Preserves original creator attribution via cloned_from_* columns.
+export const clonePlaylist = async (source: Playlist): Promise<Playlist[]> => {
+  const uid = await currentUserId();
+  if (!uid) throw new Error('Not signed in');
+  if (source.userId === uid) throw new Error('That playlist is already yours');
+
+  // Prevent duplicate clone: reject if the user already has a clone of this playlist id
+  const { data: existing } = await supabase
+    .from('playlists')
+    .select('id')
+    .eq('user_id', uid)
+    .eq('cloned_from_playlist_id', source.id)
+    .maybeSingle();
+  if (existing) throw new Error('You already added this playlist');
+
+  const insertRow = {
+    name: source.name,
+    song_ids: source.song_ids,
+    user_id: uid,
+    cloned_from_user_id: source.userId ?? null,
+    cloned_from_playlist_id: source.id,
+  };
+  const { error } = await supabase.from('playlists').insert(insertRow);
+  if (error) throw new Error(error.message);
+  return loadPlaylists();
+};
+
+// Check if viewer has already cloned a given source playlist.
+export const hasClonedPlaylist = async (sourceId: string): Promise<boolean> => {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const { data } = await supabase
+    .from('playlists')
+    .select('id')
+    .eq('user_id', uid)
+    .eq('cloned_from_playlist_id', sourceId)
+    .maybeSingle();
+  return !!data;
+};
+
 // ── Progressions (private per user) ───────────────────────────────────────────
 export const loadProgressions = async (): Promise<Progression[]> => {
-  const { data, error } = await supabase.from('progressions').select('*').order('created_at', { ascending: false });
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from('progressions')
+    .select('*')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false });
   if (error) { console.error('loadProgressions:', error); return []; }
   return data.map((p) => ({ id: p.id, name: p.name, chords: p.chords ?? [], bpm: p.bpm ?? 100 }));
 };
 
 export const addProgression = async (name: string, chords: string[], bpm: number): Promise<Progression[]> => {
-  const { error } = await supabase.from('progressions').insert({ name, chords, bpm });
+  const uid = await currentUserId();
+  if (!uid) throw new Error('Not signed in');
+  const { error } = await supabase.from('progressions').insert({ name, chords, bpm, user_id: uid });
   if (error) throw new Error(error.message);
   return loadProgressions();
 };
 
 export const updateProgression = async (id: string, updates: Partial<Pick<Progression, 'name' | 'chords' | 'bpm'>>): Promise<void> => {
-  const { error } = await supabase.from('progressions').update(updates).eq('id', id);
+  const uid = await currentUserId();
+  if (!uid) throw new Error('Not signed in');
+  const { error } = await supabase
+    .from('progressions')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', uid);
   if (error) throw new Error(error.message);
 };
 
 export const deleteProgression = async (id: string): Promise<Progression[]> => {
-  const { error } = await supabase.from('progressions').delete().eq('id', id);
+  const uid = await currentUserId();
+  if (!uid) throw new Error('Not signed in');
+  const { error } = await supabase
+    .from('progressions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', uid);
   if (error) throw new Error(error.message);
   return loadProgressions();
 };

@@ -210,8 +210,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   const [loading,         setLoading]         = useState(true);
   const [editMode,        setEditMode]        = useState(false);
   const [transposeOffset, setTransposeOffset] = useState(0);
-  const [localBpm,        setLocalBpm]        = useState<number | undefined>(undefined);
-  const [savingBpm,       setSavingBpm]       = useState(false);
   const [edited, setEdited] = useState({
     title: '', artist: '', chords: '', lyrics: '', notes: '',
     language: 'english' as 'greek' | 'english',
@@ -278,7 +276,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     loadSongById(id).then((found) => {
       setSong(found);
       if (found) {
-        setLocalBpm(found.bpm);
         setEdited({
           title: found.title, artist: found.artist,
           chords: found.chords.join(', '),
@@ -307,7 +304,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     try {
       await updateSong(song.id, updated);
       setSong(updated);
-      setLocalBpm(updated.bpm);
       setEditMode(false);
     } catch { alert('Failed to save. Please try again.'); }
   };
@@ -318,17 +314,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
       await deleteSong(song.id);
       router.push('/');
     } catch { alert('Failed to delete.'); }
-  };
-
-  const handleSaveBpm = async (bpm: number | undefined) => {
-    if (!song) return;
-    setSavingBpm(true);
-    try {
-      await updateSong(song.id, { ...song, bpm });
-      setSong({ ...song, bpm });
-      setLocalBpm(bpm);
-    } catch { alert('Failed to save BPM.'); }
-    setSavingBpm(false);
   };
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -455,13 +440,9 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           <div className="song-two-col">
             {/* ── LEFT: metadata ── */}
             <div className="song-sidebar">
-              {/* Language badge */}
-              <div style={{
-                fontSize: '0.58rem', letterSpacing: '0.5em', color: 'var(--gold-dim)',
-                textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                marginBottom: '14px',
-              }}>
-                <Flag lang={song.language} withLabel />
+              {/* Language flag (small) */}
+              <div style={{ marginBottom: '10px', fontSize: '1.1rem', lineHeight: 1 }}>
+                <Flag lang={song.language} style={{ width: '1.6em', height: '1.15em' }} />
               </div>
 
               {/* Uploader attribution */}
@@ -633,50 +614,6 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 background: 'linear-gradient(90deg, var(--gold-border-mid), transparent)',
                 marginBottom: '28px',
               }} />
-
-              {/* BPM section */}
-              <section style={{ marginBottom: '28px' }}>
-                <div style={labelStyle}>BPM</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    fontSize: '2rem', fontWeight: 700, color: 'var(--gold-bright)',
-                    fontVariantNumeric: 'tabular-nums', minWidth: '56px',
-                  }}>
-                    {localBpm ?? '—'}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <button
-                      onClick={() => {
-                        const next = Math.min(240, (localBpm ?? 119) + 1);
-                        setLocalBpm(next);
-                        handleSaveBpm(next);
-                      }}
-                      style={nudgeSm}
-                    >＋</button>
-                    <button
-                      onClick={() => {
-                        const next = Math.max(40, (localBpm ?? 121) - 1);
-                        setLocalBpm(next);
-                        handleSaveBpm(next);
-                      }}
-                      style={nudgeSm}
-                    >－</button>
-                  </div>
-                  <Link
-                    href={`/metronome${localBpm ? `?bpm=${localBpm}` : ''}`}
-                    style={{
-                      padding: '6px 12px', fontSize: '0.65rem', letterSpacing: '0.2em',
-                      textTransform: 'uppercase', textDecoration: 'none',
-                      border: '1px solid var(--gold-border)',
-                      color: 'var(--cream-muted)', transition: 'all 0.15s',
-                      display: 'inline-flex', alignItems: 'center',
-                      opacity: savingBpm ? 0.5 : 1,
-                    }}
-                  >
-                    ♩ Metronome
-                  </Link>
-                </div>
-              </section>
 
               {/* Chords + Transpose */}
               {song.chords.length > 0 && (
@@ -973,14 +910,6 @@ const videoBtnStyle: React.CSSProperties = {
   cursor: 'pointer',
   border: '1px solid var(--gold-border)',
   background: 'transparent', color: 'var(--cream-muted)',
-  transition: 'all 0.15s',
-};
-
-const nudgeSm: React.CSSProperties = {
-  width: '24px', height: '24px', cursor: 'pointer',
-  border: '1px solid var(--gold-border)',
-  background: 'transparent', color: 'var(--cream-muted)',
-  fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };
 

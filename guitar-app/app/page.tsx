@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import UserMenu from '@/components/UserMenu';
 import { useAuth } from '@/lib/auth';
 
 const AUTH_REQUIRED = new Set(['/playlists', '/favorites', '/feed']);
@@ -194,16 +193,6 @@ function FeedIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 80 72" width="80" height="72" fill="none" stroke="currentColor">
-      <circle cx="34" cy="32" r="18" strokeWidth="2.5" />
-      <line x1="48" y1="46" x2="66" y2="62" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="34" cy="32" r="6" fill="currentColor" stroke="none" opacity="0.5" />
-    </svg>
-  );
-}
-
 function PlaylistsIcon() {
   // Ordered list with a small music note accent
   return (
@@ -227,11 +216,11 @@ function PlaylistsIcon() {
 // ── Card ─────────────────────────────────────────────────────────────────────
 const cards = [
   {
-    href:        '/tuner',
-    label:       'Tuner',
-    subtitle:    'Chromatic precision',
-    description: 'Real-time pitch detection with an analog dial. Tune by ear with scientific accuracy.',
-    Icon:        TunerIcon,
+    href:        '/songs',
+    label:       'Songs',
+    subtitle:    'Community library',
+    description: 'Every song uploaded by any member. Hover chords for diagrams, view who uploaded each song.',
+    Icon:        SongsIcon,
   },
   {
     href:        '/chords',
@@ -241,13 +230,6 @@ const cards = [
     Icon:        ChordsIcon,
   },
   {
-    href:        '/songs',
-    label:       'Songs',
-    subtitle:    'Community library',
-    description: 'Every song uploaded by any member. Hover chords for diagrams, view who uploaded each song.',
-    Icon:        SongsIcon,
-  },
-  {
     href:        '/playlists',
     label:       'Playlists',
     subtitle:    'Sets & setlists',
@@ -255,39 +237,11 @@ const cards = [
     Icon:        PlaylistsIcon,
   },
   {
-    href:        '/metronome',
-    label:       'Metronome',
-    subtitle:    'Keep the beat',
-    description: 'BPM slider, tap tempo, and visual beat indicator. Saved per song so it\'s ready when you open it.',
-    Icon:        MetronomeIcon,
-  },
-  {
-    href:        '/progressions',
-    label:       'Progressions',
-    subtitle:    'Chord sequences',
-    description: 'Build chord progressions like Am–F–C–G, loop them with the metronome, and save them for practice.',
-    Icon:        ProgressionsIcon,
-  },
-  {
     href:        '/favorites',
     label:       'Favorites',
     subtitle:    'Hearts you gave',
     description: 'Songs you marked with a heart — your personal shortlist across the whole library.',
     Icon:        FavoritesIcon,
-  },
-  {
-    href:        '/feed',
-    label:       'Feed',
-    subtitle:    'From people you follow',
-    description: 'Latest song uploads from accounts you follow. Keep up with friends and artists you like.',
-    Icon:        FeedIcon,
-  },
-  {
-    href:        '/search',
-    label:       'Find Members',
-    subtitle:    'Discover players',
-    description: 'Search for friends by username. See their songs, playlists, and follow them for updates.',
-    Icon:        SearchIcon,
   },
 ] as const;
 
@@ -411,86 +365,69 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
 export default function Home() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* ── Header ── */}
+      {/* ── Header (compact) ── */}
       <header style={{
         borderBottom: '1px solid var(--gold-border)',
         background: 'var(--bg-base)',
-        padding: 'clamp(48px, 8vw, 88px) clamp(20px, 4vw, 40px)',
+        padding: 'clamp(20px, 3vw, 36px) clamp(16px, 3vw, 32px)',
         textAlign: 'center',
         position: 'relative',
         overflow: 'hidden',
       }}>
-        <div style={{ position: 'absolute', top: '16px', right: '20px', zIndex: 2 }}>
-          <UserMenu />
-        </div>
         {/* Teal radial glow behind title */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(0,196,180,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 50% 65% at 50% 50%, rgba(0,196,180,0.06) 0%, transparent 70%)',
         }} />
 
-        <div style={{ position: 'relative' }}>
+        <div style={{
+          position: 'relative',
+          display: 'inline-flex', alignItems: 'center', gap: 'clamp(14px, 2vw, 22px)',
+        }}>
           {/* Logo mark */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="72" height="72">
-              <defs>
-                <filter id="logo-glow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-                <clipPath id="logo-pick-clip">
-                  <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"/>
-                </clipPath>
-              </defs>
-              <ellipse cx="50" cy="50" rx="26" ry="30" fill="rgba(0,196,180,0.06)"/>
-              <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"
-                    fill="rgba(0,196,180,0.07)" stroke="#00c4b4" strokeWidth="2"/>
-              <g clipPath="url(#logo-pick-clip)">
-                <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
-                      stroke="#00e8d5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
-                      opacity="0.25" filter="url(#logo-glow)"/>
-                <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
-                      stroke="#00e8d5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </g>
-            </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="44" height="44">
+            <defs>
+              <filter id="logo-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <clipPath id="logo-pick-clip">
+                <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"/>
+              </clipPath>
+            </defs>
+            <ellipse cx="50" cy="50" rx="26" ry="30" fill="rgba(0,196,180,0.06)"/>
+            <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"
+                  fill="rgba(0,196,180,0.07)" stroke="#00c4b4" strokeWidth="2"/>
+            <g clipPath="url(#logo-pick-clip)">
+              <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
+                    stroke="#00e8d5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
+                    opacity="0.25" filter="url(#logo-glow)"/>
+              <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
+                    stroke="#00e8d5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </g>
+          </svg>
+
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontSize: '0.55rem', letterSpacing: '0.45em', color: 'var(--gold-dim)',
+              textTransform: 'uppercase', marginBottom: '2px',
+            }}>
+              Guitar Companion
+            </div>
+            <h1 style={{
+              fontSize: 'clamp(1.6rem, 3.4vw, 2.6rem)',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              margin: 0,
+              lineHeight: 1.05,
+              background: 'linear-gradient(135deg, #ffffff 30%, var(--gold-bright) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              Songcord
+            </h1>
           </div>
-
-          <div style={{
-            fontSize: '0.65rem', letterSpacing: '0.55em', color: 'var(--gold-dim)',
-            textTransform: 'uppercase', marginBottom: '20px',
-          }}>
-            Guitar Companion
-          </div>
-
-          <h1 style={{
-            fontSize: 'clamp(3rem, 8vw, 6.5rem)',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            margin: '0 0 16px',
-            lineHeight: 1,
-            background: 'linear-gradient(135deg, #ffffff 30%, var(--gold-bright) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>
-            Play Guitar
-          </h1>
-
-          {/* Teal accent line */}
-          <div style={{
-            width: '64px', height: '3px', margin: '0 auto 20px',
-            background: 'linear-gradient(90deg, transparent, var(--gold-bright), transparent)',
-            boxShadow: '0 0 16px rgba(0,232,213,0.6)',
-          }} />
-
-          <p style={{
-            fontSize: 'clamp(0.9rem, 1.5vw, 1.05rem)',
-            color: 'var(--cream-soft)',
-            margin: 0,
-            letterSpacing: '0.02em',
-          }}>
-            Tuner · Chords · Songs · Playlists · Metronome · Progressions
-          </p>
         </div>
       </header>
 
@@ -500,10 +437,10 @@ export default function Home() {
         maxWidth: '1280px',
         width: '100%',
         margin: '0 auto',
-        padding: 'clamp(40px, 7vw, 80px) clamp(20px, 4vw, 48px)',
+        padding: 'clamp(24px, 4vw, 48px) clamp(16px, 3vw, 36px)',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-        gap: 'clamp(16px, 3vw, 28px)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+        gap: 'clamp(14px, 2.2vw, 22px)',
         alignItems: 'stretch',
       }}>
         {cards.map((card) => (

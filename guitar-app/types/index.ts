@@ -1,9 +1,17 @@
+export interface Voicing {
+  label: string;
+  strings: (number | 'x' | 'o')[];
+  fingers: number[];
+  baseFret: number;
+}
+
 export interface Chord {
   name: string;
   type: 'major' | 'minor' | '7th' | 'maj7' | 'm7' | 'dim' | 'aug' | 'sus2' | 'sus4' | 'add9';
   strings: (number | 'x' | 'o')[];
   fingers: number[];
   baseFret: number;
+  voicings?: Voicing[];
 }
 
 export interface Song {
@@ -29,6 +37,9 @@ export interface Playlist {
   userId?: string;
   ownerUsername?: string;
   isPublic?: boolean;
+  clonedFromUserId?: string;
+  clonedFromUsername?: string;
+  clonedFromPlaylistId?: string;
 }
 
 export interface Profile {

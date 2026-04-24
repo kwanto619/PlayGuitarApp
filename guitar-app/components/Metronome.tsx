@@ -8,20 +8,49 @@ interface MetronomeProps {
   onBpmChange?: (bpm: number) => void;
 }
 
-export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomeProps) {
-  const [bpm, setBpm]         = useState(initialBpm);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [beat, setBeat]       = useState(-1); // 0-3, -1 = stopped
-  const [beatsPerBar]         = useState(4);
+// ── Time Signature Presets ───────────────────────────────────────────────────
+interface TimeSig {
+  id: string;
+  label: string;
+  beats: number;
+  // default accent pattern — true = accented click on that beat
+  defaults: boolean[];
+}
+const TIME_SIGS: TimeSig[] = [
+  { id: '2/4', label: '2/4', beats: 2, defaults: [true, false] },
+  { id: '3/4', label: '3/4', beats: 3, defaults: [true, false, false] },
+  { id: '4/4', label: '4/4', beats: 4, defaults: [true, false, false, false] },
+  { id: '5/4', label: '5/4', beats: 5, defaults: [true, false, false, true, false] },
+  { id: '6/8', label: '6/8', beats: 6, defaults: [true, false, false, true, false, false] },
+  { id: '7/8', label: '7/8', beats: 7, defaults: [true, false, true, false, true, false, false] },
+];
 
-  const audioCtxRef    = useRef<AudioContext | null>(null);
-  const nextNoteRef    = useRef(0);
-  const beatCountRef   = useRef(0);
-  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bpmRef         = useRef(bpm);
+export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomeProps) {
+  const [bpm, setBpm]       = useState(initialBpm);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [beat, setBeat]     = useState(-1);
+  const [timeSigId, setTimeSigId] = useState('4/4');
+  const [accents, setAccents] = useState<boolean[]>([...TIME_SIGS[2].defaults]);
+
+  const timeSig = TIME_SIGS.find((t) => t.id === timeSigId) ?? TIME_SIGS[2];
+  const beatsPerBar = timeSig.beats;
+
+  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const nextNoteRef   = useRef(0);
+  const beatCountRef  = useRef(0);
+  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bpmRef        = useRef(bpm);
+  const accentsRef    = useRef(accents);
   const beatsPerBarRef = useRef(beatsPerBar);
 
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { accentsRef.current = accents; }, [accents]);
+  useEffect(() => { beatsPerBarRef.current = beatsPerBar; }, [beatsPerBar]);
+
+  // Sync accents when time sig changes
+  useEffect(() => {
+    setAccents([...timeSig.defaults]);
+  }, [timeSigId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scheduleClick = useCallback((time: number, accent: boolean) => {
     const ctx = audioCtxRef.current!;
@@ -30,9 +59,9 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.type = 'square';
-    osc.frequency.value = accent ? 1200 : 800;
+    osc.frequency.value = accent ? 1400 : 800;
     gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(accent ? 0.5 : 0.3, time + 0.004);
+    gain.gain.linearRampToValueAtTime(accent ? 0.55 : 0.28, time + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
     osc.start(time);
     osc.stop(time + 0.06);
@@ -41,15 +70,13 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
   const tick = useCallback(() => {
     const ctx = audioCtxRef.current!;
     const LOOKAHEAD = 0.1;
-
     while (nextNoteRef.current < ctx.currentTime + LOOKAHEAD) {
       const beatInBar = beatCountRef.current % beatsPerBarRef.current;
-      scheduleClick(nextNoteRef.current, beatInBar === 0);
-
+      const accent = accentsRef.current[beatInBar] ?? false;
+      scheduleClick(nextNoteRef.current, accent);
       const delay = Math.max(0, (nextNoteRef.current - ctx.currentTime) * 1000);
       const captured = beatInBar;
       setTimeout(() => setBeat(captured), delay);
-
       beatCountRef.current++;
       nextNoteRef.current += 60 / bpmRef.current;
     }
@@ -96,38 +123,88 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
     onBpmChange?.(clamped);
   };
 
+  const toggleAccent = (idx: number) => {
+    setAccents((prev) => prev.map((a, i) => (i === idx ? !a : a)));
+  };
+
   const tempoName = getTempoName(bpm);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
 
-      {/* Beat dots */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        {Array.from({ length: beatsPerBar }).map((_, i) => {
-          const active  = beat === i;
-          const accent  = i === 0;
-          return (
-            <div key={i} style={{
-              width:  active ? (accent ? 26 : 22) : (accent ? 20 : 16),
-              height: active ? (accent ? 26 : 22) : (accent ? 20 : 16),
-              borderRadius: '50%',
-              background: active
-                ? (accent ? 'var(--gold-bright)' : 'var(--gold)')
-                : 'var(--bg-card)',
-              border: `2px solid ${active ? (accent ? 'var(--gold-bright)' : 'var(--gold)') : 'var(--gold-border-mid)'}`,
-              boxShadow: active ? `0 0 ${accent ? 20 : 12}px ${accent ? 'rgba(0,232,213,0.7)' : 'rgba(0,196,180,0.5)'}` : 'none',
-              transition: 'all 0.06s ease-out',
-            }} />
-          );
-        })}
+      {/* Time Signature selector */}
+      <div style={{ width: '100%', maxWidth: '480px' }}>
+        <div style={{
+          fontSize: '0.6rem', letterSpacing: '0.4em', color: 'var(--gold-dim)',
+          textTransform: 'uppercase', marginBottom: '8px', textAlign: 'center',
+        }}>
+          Time Signature
+        </div>
+        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {TIME_SIGS.map((ts) => {
+            const active = ts.id === timeSigId;
+            return (
+              <button
+                key={ts.id}
+                onClick={() => setTimeSigId(ts.id)}
+                style={{
+                  padding: '10px 18px', minHeight: '44px', minWidth: '56px',
+                  fontSize: '1rem', fontWeight: 700, letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  border: `1px solid ${active ? 'var(--gold-bright)' : 'var(--gold-border)'}`,
+                  background: active ? 'rgba(0,232,213,0.15)' : 'transparent',
+                  color: active ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                  transition: 'all 0.12s',
+                }}
+              >
+                {ts.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Beat dots — CLICKABLE: toggle accent per beat */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+        <div style={{
+          fontSize: '0.58rem', letterSpacing: '0.35em', color: 'var(--gold-dim)',
+          textTransform: 'uppercase',
+        }}>
+          Tap a beat to add/remove accent
+        </div>
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+          {Array.from({ length: beatsPerBar }).map((_, i) => {
+            const active = beat === i;
+            const accent = accents[i] ?? false;
+            return (
+              <button
+                key={i}
+                onClick={() => toggleAccent(i)}
+                title={`Beat ${i + 1} — ${accent ? 'accented' : 'normal'} (click to toggle)`}
+                style={{
+                  width:  active ? (accent ? 30 : 24) : (accent ? 26 : 20),
+                  height: active ? (accent ? 30 : 24) : (accent ? 26 : 20),
+                  borderRadius: '50%', padding: 0, cursor: 'pointer',
+                  background: active
+                    ? (accent ? 'var(--gold-bright)' : 'var(--gold)')
+                    : (accent ? 'rgba(0,232,213,0.22)' : 'var(--bg-card)'),
+                  border: `2px solid ${active ? (accent ? 'var(--gold-bright)' : 'var(--gold)') : (accent ? 'var(--gold-bright)' : 'var(--gold-border-mid)')}`,
+                  boxShadow: active
+                    ? `0 0 ${accent ? 20 : 12}px ${accent ? 'rgba(0,232,213,0.7)' : 'rgba(0,196,180,0.5)'}`
+                    : 'none',
+                  transition: 'all 0.06s ease-out',
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* BPM display */}
       <div style={{ textAlign: 'center' }}>
         <div style={{
-          fontSize: 'clamp(5rem, 15vw, 9rem)',
-          fontWeight: 700,
-          lineHeight: 1,
+          fontSize: 'clamp(4.5rem, 13vw, 8rem)',
+          fontWeight: 700, lineHeight: 1,
           color: isPlaying ? 'var(--gold-bright)' : 'var(--cream)',
           letterSpacing: '-0.03em',
           textShadow: isPlaying ? '0 0 60px rgba(0,232,213,0.3)' : 'none',
@@ -137,18 +214,17 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
           {bpm}
         </div>
         <div style={{
-          fontSize: '0.75rem', letterSpacing: '0.4em', textTransform: 'uppercase',
+          fontSize: '0.72rem', letterSpacing: '0.4em', textTransform: 'uppercase',
           color: 'var(--gold-dim)', marginTop: '4px',
         }}>
-          BPM · {tempoName}
+          BPM · {tempoName} · {timeSig.label}
         </div>
       </div>
 
-      {/* BPM Slider */}
+      {/* BPM slider */}
       <div style={{ width: '100%', maxWidth: '480px' }}>
         <input
-          type="range"
-          min={40} max={240} step={1}
+          type="range" min={40} max={240} step={1}
           value={bpm}
           onChange={(e) => handleBpm(Number(e.target.value))}
           style={{
@@ -162,7 +238,7 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
         </div>
       </div>
 
-      {/* Quick BPM presets */}
+      {/* BPM presets */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
         {[60, 80, 100, 120, 140, 160].map((preset) => (
           <button
@@ -183,46 +259,42 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
         ))}
       </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        {/* Tap tempo */}
-        <button
-          onClick={handleTap}
-          style={{
-            padding: '14px 28px', minHeight: '52px',
-            fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.2em',
-            textTransform: 'uppercase', cursor: 'pointer',
-            border: '1px solid var(--gold-border-mid)',
-            background: 'transparent', color: 'var(--cream-soft)',
-            transition: 'all 0.1s',
-          }}
-          onMouseDown={(e) => { e.currentTarget.style.background = 'rgba(0,196,180,0.1)'; }}
-          onMouseUp={(e)   => { e.currentTarget.style.background = 'transparent'; }}
-        >
+      {/* Controls — big, visible Start button */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <button onClick={handleTap} style={{
+          padding: '14px 28px', minHeight: '60px',
+          fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.22em',
+          textTransform: 'uppercase', cursor: 'pointer',
+          border: '1px solid var(--gold-border-mid)',
+          background: 'rgba(0,196,180,0.05)', color: 'var(--cream-soft)',
+          transition: 'all 0.1s',
+        }}>
           Tap
         </button>
 
-        {/* Start / Stop */}
+        {/* BIG Start/Stop */}
         <button
           onClick={isPlaying ? stop : start}
           style={{
-            width: '96px', height: '96px', borderRadius: '50%',
-            fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.2em',
+            width: '130px', height: '130px', borderRadius: '50%',
+            fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.25em',
             textTransform: 'uppercase', cursor: 'pointer',
-            border: `2px solid ${isPlaying ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
+            border: `3px solid ${isPlaying ? 'var(--red-tuning)' : 'var(--gold-bright)'}`,
             background: isPlaying
-              ? 'linear-gradient(135deg, rgba(0,196,180,0.25), rgba(0,130,120,0.15))'
-              : 'linear-gradient(135deg, rgba(0,130,120,0.2), rgba(0,90,83,0.1))',
-            color: isPlaying ? 'var(--gold-bright)' : 'var(--cream)',
-            boxShadow: isPlaying ? '0 0 32px rgba(0,196,180,0.25)' : 'none',
+              ? 'linear-gradient(135deg, rgba(224,72,72,0.35), rgba(224,72,72,0.15))'
+              : 'linear-gradient(135deg, rgba(0,232,213,0.4), rgba(0,130,120,0.25))',
+            color: isPlaying ? 'var(--red-tuning)' : 'var(--gold-bright)',
+            boxShadow: isPlaying
+              ? '0 0 40px rgba(224,72,72,0.4), inset 0 0 20px rgba(224,72,72,0.15)'
+              : '0 0 48px rgba(0,232,213,0.45), inset 0 0 20px rgba(0,232,213,0.12)',
             transition: 'all 0.2s',
+            textShadow: '0 0 12px currentColor',
           }}
         >
-          {isPlaying ? 'Stop' : 'Start'}
+          {isPlaying ? '◼ Stop' : '▶ Start'}
         </button>
 
-        {/* +/- fine adjust */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button onClick={() => handleBpm(bpm + 1)} style={nudgeBtn}>＋</button>
           <button onClick={() => handleBpm(bpm - 1)} style={nudgeBtn}>－</button>
         </div>
@@ -232,10 +304,10 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
 }
 
 const nudgeBtn: React.CSSProperties = {
-  width: '40px', height: '40px',
-  fontSize: '1.1rem', cursor: 'pointer',
-  border: '1px solid var(--gold-border)',
-  background: 'transparent', color: 'var(--cream-muted)',
+  width: '48px', height: '48px',
+  fontSize: '1.2rem', cursor: 'pointer',
+  border: '1px solid var(--gold-border-mid)',
+  background: 'rgba(0,196,180,0.08)', color: 'var(--gold-bright)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };

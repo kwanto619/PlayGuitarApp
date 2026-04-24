@@ -570,6 +570,20 @@ function PlaylistCard({ playlist, songCount, onClick }: { playlist: Playlist; so
       }}>
         {songCount === 0 ? 'Empty playlist' : `${songCount} song${songCount !== 1 ? 's' : ''}`}
       </div>
+      {playlist.clonedFromUsername && (
+        <div style={{
+          display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '5px',
+          marginTop: '-4px',
+          padding: '3px 10px',
+          fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          border: '1px solid var(--gold-border-mid)',
+          background: 'rgba(0,196,180,0.06)',
+          color: 'var(--gold)',
+        }}>
+          From @{playlist.clonedFromUsername}
+        </div>
+      )}
 
       <div style={{
         marginTop: 'auto',
