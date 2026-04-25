@@ -27,19 +27,17 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
     setIsTouch(window.matchMedia('(hover: none) and (pointer: coarse)').matches);
   }, []);
 
-  // Recalculate position on scroll / resize while open
+  // Close tooltip on scroll / resize. Browsers do not reliably fire
+  // mouseleave on programmatic or auto-scroll, which left ghost popups
+  // stacked when triggers scrolled under the cursor.
   useEffect(() => {
     if (!pos) return;
-    const update = () => {
-      if (!triggerRef.current) return;
-      const r = triggerRef.current.getBoundingClientRect();
-      setPos({ top: r.top, left: r.left + r.width / 2 });
-    };
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
+    const close = () => setPos(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
     return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
     };
   }, [pos]);
 

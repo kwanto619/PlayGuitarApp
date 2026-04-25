@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import NotificationBell from './NotificationBell';
@@ -23,8 +24,24 @@ function UserIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+async function fileToResizedDataUrl(file: File, max = 192): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const ratio = Math.min(max / bitmap.width, max / bitmap.height, 1);
+  const w = Math.max(1, Math.round(bitmap.width * ratio));
+  const h = Math.max(1, Math.round(bitmap.height * ratio));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
 export default function UserMenu() {
-  const { user, username, signOut } = useAuth();
+  const { user, avatarUrl, signOut, setAvatar } = useAuth();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
 
   if (!user) {
     return (
@@ -43,38 +60,66 @@ export default function UserMenu() {
     );
   }
 
+  const onPick = () => fileRef.current?.click();
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setBusy(true);
+    try {
+      const dataUrl = await fileToResizedDataUrl(file, 192);
+      await setAvatar(dataUrl);
+    } catch (err) {
+      console.error('Avatar update failed', err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="user-menu" style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      gap: '8px', flexWrap: 'wrap', rowGap: '8px',
-      width: '100%', maxWidth: '100%',
+      display: 'inline-flex', alignItems: 'center', gap: '8px',
       fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.78rem',
       letterSpacing: '0.16em', textTransform: 'uppercase',
     }}>
       <NotificationBell />
-      {username && (
-        <Link
-          href={`/u/${username}`}
-          title={`@${username}`}
-          className="um-username"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '7px',
-            padding: '7px 12px', flex: '0 1 auto', minWidth: 0,
-            maxWidth: '100%',
-            border: '1px solid var(--gold-border-mid)',
-            background: 'linear-gradient(135deg, rgba(0,130,120,0.3), rgba(0,90,83,0.15))',
-            color: 'var(--gold-bright)', textDecoration: 'none',
-          }}
-        >
-          <UserIcon size={16} />
-          <span className="um-label" style={{
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-          }}>@{username}</span>
-        </Link>
-      )}
+
+      <button
+        type="button"
+        onClick={onPick}
+        disabled={busy}
+        title="Change profile picture"
+        aria-label="Change profile picture"
+        style={{
+          width: '36px', height: '36px', borderRadius: '50%',
+          padding: 0, cursor: busy ? 'wait' : 'pointer',
+          border: '1px solid var(--gold-border-mid)',
+          background: avatarUrl
+            ? `center/cover no-repeat url(${avatarUrl})`
+            : 'linear-gradient(135deg, rgba(0,130,120,0.45), rgba(0,90,83,0.25))',
+          color: 'var(--gold-bright)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden', flex: '0 0 auto',
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        {!avatarUrl && <UserIcon size={18} />}
+      </button>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        onChange={onFile}
+        style={{ display: 'none' }}
+      />
+
       <button
         onClick={signOut}
         title="Sign out"
+        aria-label="Sign out"
         className="um-signout"
         style={{
           padding: '7px 12px', cursor: 'pointer', flex: '0 0 auto',
@@ -86,12 +131,11 @@ export default function UserMenu() {
           fontWeight: 600,
         }}
       >
-        <svg className="um-signout-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <polyline points="16 17 21 12 16 7" />
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
-        <span className="um-signout-text">Sign out</span>
       </button>
     </div>
   );

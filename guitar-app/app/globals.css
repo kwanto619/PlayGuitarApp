@@ -76,6 +76,10 @@ html, body {
   background-color: var(--bg-deep);
   color: var(--cream);
 }
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
 body {
   font-family: var(--font-space, system-ui, sans-serif);
   margin: 0;
@@ -151,6 +155,12 @@ button, a, [role="button"], input, textarea, select, label {
   grid-template-columns: clamp(260px, 35%, 380px) 1fr;
   gap: clamp(32px, 5vw, 64px);
   align-items: start;
+}
+/* Grid tracks default to min-width: auto, which lets long <pre> lyrics
+   widen the column past viewport on mobile. Force tracks to actually
+   honor 1fr by zeroing their min-width. */
+.song-two-col > * {
+  min-width: 0;
 }
 
 .song-sidebar {

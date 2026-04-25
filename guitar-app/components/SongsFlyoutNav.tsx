@@ -8,7 +8,6 @@ import {
   FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
-import UserMenu from './UserMenu';
 
 type Leaf = { kind: 'leaf'; href: string; label: string; Icon: React.ElementType; desc?: string };
 type Group = { kind: 'group'; id: string; label: string; Icon: React.ElementType; children: Leaf[] };
@@ -59,13 +58,6 @@ export default function SongsFlyoutNav() {
           )}
         </nav>
 
-        <div style={{
-          padding: '12px 14px',
-          borderTop: '1px solid var(--gold-border)',
-          display: 'flex', justifyContent: 'center',
-        }}>
-          <UserMenu />
-        </div>
       </aside>
 
       {/* Mobile trigger */}
@@ -259,13 +251,6 @@ function MobileDrawer({
                   ? <div key={i} onClick={() => setOpen(false)}><RailLink item={item} inDrawer /></div>
                   : <RailGroup key={i} group={item} inDrawer />
               )}
-            </div>
-            <div style={{
-              padding: '12px 14px',
-              borderTop: '1px solid var(--gold-border)',
-              display: 'flex', justifyContent: 'center',
-            }}>
-              <UserMenu />
             </div>
           </motion.nav>
         </motion.div>

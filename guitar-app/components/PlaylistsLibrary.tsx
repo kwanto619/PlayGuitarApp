@@ -171,6 +171,11 @@ function SongPickerModal({
   const [search, setSearch] = useState('');
   const currentSet = new Set(currentIds);
 
+  useEffect(() => {
+    document.body.classList.add('scroll-locked');
+    return () => document.body.classList.remove('scroll-locked');
+  }, []);
+
   const filtered = songs.filter((s) => {
     const q = search.toLowerCase();
     return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
@@ -213,7 +218,7 @@ function SongPickerModal({
           style={{ marginBottom: '16px', flexShrink: 0 }}
         />
 
-        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', fontFamily: 'var(--font-cormorant, Georgia, serif)', color: 'var(--cream-muted)', fontSize: '1.1rem', fontStyle: 'italic' }}>
               No songs found
