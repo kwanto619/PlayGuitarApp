@@ -461,30 +461,25 @@ function PlaylistDetail({
           {visibleSongs.map((song, idx) => (
             <div
               key={song.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '16px',
-                padding: '14px 18px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--gold-border)',
-              }}
+              className="playlist-row"
             >
-              <span style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.85rem', color: 'var(--gold-dim)', minWidth: '24px', textAlign: 'right' }}>
+              <span className="playlist-row-num">
                 {idx + 1}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="playlist-row-info">
                 <Link href={`/songs/${song.id}?from=playlist&playlistId=${playlist.id}&playlistName=${encodeURIComponent(playlist.name)}`} style={{ textDecoration: 'none' }}>
                   <div style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1.1rem', color: 'var(--cream)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {song.title}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-muted)', fontStyle: 'italic' }}>
+                  <div style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.88rem', color: 'var(--cream-muted)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {song.artist}
                   </div>
                 </Link>
               </div>
               {song.chords.length > 0 && (
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '160px' }}>
+                <div className="playlist-row-chords">
                   {song.chords.slice(0, 4).map((c) => (
-                    <span key={c} style={{ padding: '2px 7px', fontSize: '0.7rem', fontFamily: 'var(--font-cormorant, Georgia, serif)', letterSpacing: '0.08em', color: 'var(--gold-dim)', border: '1px solid var(--gold-border)', background: 'rgba(0,196,180,0.04)' }}>
+                    <span key={c} style={{ padding: '2px 7px', fontSize: '0.7rem', fontFamily: 'var(--font-cormorant, Georgia, serif)', letterSpacing: '0.08em', color: 'var(--gold-dim)', border: '1px solid var(--gold-border)', background: 'rgba(0,196,180,0.04)', whiteSpace: 'nowrap' }}>
                       {c}
                     </span>
                   ))}
@@ -495,14 +490,7 @@ function PlaylistDetail({
               )}
               <button
                 onClick={() => handleRemoveSong(song.id)}
-                style={{
-                  padding: '7px 12px', minHeight: '36px',
-                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                  fontSize: '0.75rem', letterSpacing: '0.15em', textTransform: 'uppercase',
-                  cursor: 'pointer', border: '1px solid rgba(224,72,72,0.3)',
-                  background: 'transparent', color: 'var(--red-tuning)',
-                  flexShrink: 0,
-                }}
+                className="playlist-row-remove"
               >
                 Remove
               </button>

@@ -218,6 +218,27 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   });
   const [lyricsFullscreen, setLyricsFullscreen] = useState(false);
   const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
+  const lyricsBoxRef = useRef<HTMLDivElement>(null);
+  const lyricsPreRef = useRef<HTMLPreElement>(null);
+
+  const fitLyricsToWidth = useCallback(() => {
+    const box = lyricsBoxRef.current;
+    const pre = lyricsPreRef.current;
+    if (!box || !pre) return;
+    const containerW = box.clientWidth;
+    const contentW = pre.scrollWidth;
+    if (containerW <= 0 || contentW <= 0) return;
+    if (contentW <= containerW) return;
+    const ratio = containerW / contentW;
+    setFullscreenFontSize((s) => Math.max(0.4, +(s * ratio * 0.98).toFixed(2)));
+  }, []);
+
+  // Auto-fit width once when fullscreen overlay opens
+  useEffect(() => {
+    if (!lyricsFullscreen) return;
+    const t = setTimeout(fitLyricsToWidth, 60);
+    return () => clearTimeout(t);
+  }, [lyricsFullscreen, fitLyricsToWidth]);
 
   // Lock body scroll while fullscreen overlay is open so the underlying sticky
   // top bar can't peek through and create a "double navbar" look.
@@ -803,16 +824,26 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 Size
               </span>
               <button
-                onClick={() => setFullscreenFontSize((s) => Math.max(0.6, +(s - 0.1).toFixed(1)))}
+                onClick={() => setFullscreenFontSize((s) => Math.max(0.4, +(s - 0.1).toFixed(2)))}
                 style={scrollNudge}
               >−</button>
               <span style={{ fontSize: '0.75rem', color: 'var(--cream-soft)', minWidth: '32px', textAlign: 'center' }}>
                 {fullscreenFontSize.toFixed(1)}
               </span>
               <button
-                onClick={() => setFullscreenFontSize((s) => Math.min(2.5, +(s + 0.1).toFixed(1)))}
+                onClick={() => setFullscreenFontSize((s) => Math.min(2.5, +(s + 0.1).toFixed(2)))}
                 style={scrollNudge}
               >+</button>
+              <button
+                onClick={fitLyricsToWidth}
+                title="Fit lyrics to screen width"
+                style={{
+                  ...scrollNudge,
+                  width: 'auto', minWidth: '52px', padding: '0 12px',
+                  fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                }}
+              >Fit</button>
               <button
                 onClick={() => setLyricsFullscreen(false)}
                 style={{
@@ -831,8 +862,8 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           </div>
 
           {/* Lyrics content */}
-          <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' as const }}>
-            <pre style={{
+          <div ref={lyricsBoxRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' as const }}>
+            <pre ref={lyricsPreRef} style={{
               whiteSpace: 'pre',
               fontFamily: 'var(--font-ibm-mono, monospace)',
               fontSize: `${fullscreenFontSize}rem`,

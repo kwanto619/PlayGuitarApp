@@ -215,7 +215,51 @@ const CHORD_PATTERN = new RegExp(
 
 export type LyricsSegment = { type: 'text' | 'chord'; content: string };
 
-export function parseLyrics(text: string): LyricsSegment[] {
+// Decode HTML entities at render time so old songs imported before the
+// import-side entity decoder covered every case still display cleanly.
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  nbsp: ' ', shy: '',
+  rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
+  ndash: '–', mdash: '—', hellip: '…',
+  laquo: '«', raquo: '»', sbquo: '‚', bdquo: '„',
+  middot: '·', bull: '•',
+  Ccedil: 'Ç', ccedil: 'ç',
+  Atilde: 'Ã', atilde: 'ã',
+  Eacute: 'É', eacute: 'é',
+  Iacute: 'Í', iacute: 'í',
+  Oacute: 'Ó', oacute: 'ó',
+  Uacute: 'Ú', uacute: 'ú',
+  Aacute: 'Á', aacute: 'á',
+  egrave: 'è', agrave: 'à',
+  igrave: 'ì', ograve: 'ò', ugrave: 'ù',
+  ntilde: 'ñ', Ntilde: 'Ñ',
+  szlig: 'ß',
+  auml: 'ä', Auml: 'Ä',
+  ouml: 'ö', Ouml: 'Ö',
+  uuml: 'ü', Uuml: 'Ü',
+};
+
+function decodeEntitiesInline(s: string): string {
+  if (!s.includes('&')) return s;
+  return s
+    .replace(/&#(\d+);/g, (_, n) => {
+      const code = parseInt(n, 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      const code = parseInt(h, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (m, name) =>
+      Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, name)
+        ? NAMED_ENTITIES[name]
+        : m,
+    );
+}
+
+export function parseLyrics(rawText: string): LyricsSegment[] {
+  const text = decodeEntitiesInline(rawText);
   const segments: LyricsSegment[] = [];
   let lastIndex = 0;
   CHORD_PATTERN.lastIndex = 0;

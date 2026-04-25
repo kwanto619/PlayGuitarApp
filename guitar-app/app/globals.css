@@ -185,6 +185,67 @@ button, a, [role="button"], input, textarea, select, label {
   }
 }
 
+/* Playlist row: stable two-row layout on narrow screens */
+.playlist-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: "num info chords remove";
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--gold-border);
+  min-width: 0;
+}
+.playlist-row-num {
+  grid-area: num;
+  font-family: var(--font-cormorant, Georgia, serif);
+  font-size: 0.85rem;
+  color: var(--gold-dim);
+  min-width: 24px;
+  text-align: right;
+}
+.playlist-row-info {
+  grid-area: info;
+  min-width: 0;
+}
+.playlist-row-chords {
+  grid-area: chords;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 160px;
+}
+.playlist-row-remove {
+  grid-area: remove;
+  padding: 7px 12px;
+  min-height: 36px;
+  font-family: var(--font-cormorant, Georgia, serif);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid rgba(224,72,72,0.3);
+  background: transparent;
+  color: var(--red-tuning);
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .playlist-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "num info remove"
+      "chords chords chords";
+    gap: 8px 12px;
+    padding: 12px 14px;
+  }
+  .playlist-row-chords {
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
 /* Minimum tap target size on touch screens */
 @media (hover: none) and (pointer: coarse) {
   .tap-target {
