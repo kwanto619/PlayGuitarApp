@@ -86,7 +86,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
           vw - TOOLTIP_W - 8,
         ),
         width: TOOLTIP_W,
-        zIndex: 9990,
+        zIndex: 10000,
         pointerEvents: 'none',
       }
     : null;

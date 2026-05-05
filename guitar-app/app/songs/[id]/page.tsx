@@ -9,6 +9,7 @@ import { loadSongById, updateSong, deleteSong } from '@/lib/storage';
 import ChordTooltip, { parseLyrics } from '@/components/ChordTooltip';
 import { transposeChords, getTransposeLabel } from '@/lib/transpose';
 import FavoriteButton from '@/components/FavoriteButton';
+import AddToPlaylistButton from '@/components/AddToPlaylistButton';
 import Comments from '@/components/Comments';
 import { exportSongPdf } from '@/lib/pdf';
 import { useAuth } from '@/lib/auth';
@@ -405,6 +406,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         {/* Actions */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!editMode && <FavoriteButton songId={id} />}
+          {!editMode && user && <AddToPlaylistButton songId={id} />}
           {!editMode && song && (
             <ActionBtn onClick={() => exportSongPdf(song)} prominent title="Download song as PDF">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

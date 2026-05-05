@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
 import { loadSongs, addSong, deleteSong, updateSong } from '@/lib/storage';
@@ -130,6 +130,13 @@ export default function SongsLibrary() {
     const qs = params.toString();
     router.replace(qs ? `/songs?${qs}` : '/songs', { scroll: false });
   }, [languageFilter, page, search, router]);
+
+  // Scroll to top when user changes page (skip initial mount so back-nav restore is preserved)
+  const firstPageRender = useRef(true);
+  useEffect(() => {
+    if (firstPageRender.current) { firstPageRender.current = false; return; }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page]);
 
   const blankForm = { title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' as 'greek' | 'english' };
   const [newSong, setNewSong] = useState(blankForm);
