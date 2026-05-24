@@ -12,14 +12,14 @@
   /* Teal accent (reuses --gold names so all components update automatically) */
   --gold:            #00c4b4;
   --gold-bright:     #00e8d5;
-  --gold-dim:        #006b63;
+  --gold-dim:        #1f9c91;
   --gold-border:     #0a2420;
   --gold-border-mid: #0f3530;
 
   /* Text — white scale */
   --cream:           #f0f0f0;
-  --cream-soft:      #9a9a9a;
-  --cream-muted:     #484848;
+  --cream-soft:      #c8c8c8;
+  --cream-muted:     #8a8a8a;
 
   /* Utility */
   --phosphor:        #00e8d5;
@@ -69,8 +69,11 @@ html.lenis, html.lenis body { height: auto; }
   text-align: left;
 }
 
-/* Body scroll lock when a fullscreen overlay is open */
-body.scroll-locked { overflow: hidden; }
+/* Body scroll lock when a fullscreen overlay is open.
+   Also lock html — Lenis owns the html scrollbar on desktop, so just
+   hiding body overflow leaves a visible second scrollbar. */
+body.scroll-locked,
+html:has(body.scroll-locked) { overflow: hidden; }
 
 html, body {
   background-color: var(--bg-deep);

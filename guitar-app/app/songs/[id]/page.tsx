@@ -794,7 +794,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
 
       {/* Fullscreen lyrics overlay */}
       {lyricsFullscreen && song.lyrics && (
-        <div style={{
+        <div data-lenis-prevent style={{
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'var(--bg-deep)',
           display: 'flex', flexDirection: 'column',
@@ -864,7 +864,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           </div>
 
           {/* Lyrics content */}
-          <div ref={lyricsBoxRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' as const }}>
+          <div ref={lyricsBoxRef} data-lenis-prevent style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' as const }}>
             <pre ref={lyricsPreRef} style={{
               whiteSpace: 'pre',
               fontFamily: 'var(--font-ibm-mono, monospace)',

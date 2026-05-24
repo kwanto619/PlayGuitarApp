@@ -480,7 +480,7 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function GeneralImport({ onImported }: { onImported: (song: Song) => void }) {
+export default function GeneralImport({ onImported, inline = false }: { onImported: (song: Song) => void; inline?: boolean }) {
   const [open,       setOpen]       = useState(false);
   const [step,       setStep]       = useState<'url' | 'paste-html' | 'preview'>('url');
   const [url,        setUrl]        = useState('');
@@ -604,30 +604,37 @@ export default function GeneralImport({ onImported }: { onImported: (song: Song)
 
   const siteName = site === 'tabsy' ? 'tabsy.gr' : site === 'kithara' ? 'kithara.to' : site === 'ug' ? 'ultimate-guitar.com' : site === 't4a' ? 'tabs4acoustic.com' : 'the site';
 
+  const triggerBtn = (
+    <button
+      onClick={() => setOpen(true)}
+      style={{
+        padding: inline ? '9px 16px' : '13px 32px',
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+        fontSize: inline ? '0.78rem' : '0.95rem', fontWeight: 600,
+        letterSpacing: inline ? '0.16em' : '0.22em', textTransform: 'uppercase',
+        cursor: 'pointer', border: '1px solid var(--gold-border-mid)',
+        background: 'linear-gradient(135deg, rgba(0,196,180,0.18), rgba(0,196,180,0.06))',
+        color: 'var(--gold-bright)', transition: 'all 0.2s',
+        display: 'flex', alignItems: 'center', gap: inline ? '6px' : '10px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <svg width={inline ? 14 : 18} height={inline ? 14 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+      Import from Tabs
+    </button>
+  );
+
   return (
     <>
       {/* ── Trigger button ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-        <button
-          onClick={() => setOpen(true)}
-          style={{
-            padding: '13px 32px',
-            fontFamily: 'var(--font-cormorant, Georgia, serif)',
-            fontSize: '0.95rem', fontWeight: 600,
-            letterSpacing: '0.22em', textTransform: 'uppercase',
-            cursor: 'pointer', border: '1px solid var(--gold-border-mid)',
-            background: 'linear-gradient(135deg, rgba(0,196,180,0.18), rgba(0,196,180,0.06))',
-            color: 'var(--gold-bright)', transition: 'all 0.2s',
-            display: 'flex', alignItems: 'center', gap: '10px',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-          Import from Tabs
-        </button>
-      </div>
+      {inline ? triggerBtn : (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          {triggerBtn}
+        </div>
+      )}
 
       {/* ── Modal overlay ── */}
       {open && (

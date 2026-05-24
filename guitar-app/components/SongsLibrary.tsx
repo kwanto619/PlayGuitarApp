@@ -204,14 +204,97 @@ export default function SongsLibrary() {
 
   return (
     <div>
-      {/* ── Kithara import ── */}
-      <GeneralImport onImported={(song) => setSongs((prev) => [song, ...prev])} />
+      {/* ── Top bar: actions (left) + search + filter (center) ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '16px',
+        marginBottom: '32px', flexWrap: 'wrap',
+      }}>
+        {/* Left: action buttons */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: '0 0 auto' }}>
+          <GeneralImport inline onImported={(song) => setSongs((prev) => [song, ...prev])} />
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            style={{
+              padding: '9px 16px',
+              fontFamily: 'var(--font-cormorant, Georgia, serif)',
+              fontSize: '0.78rem', fontWeight: 600,
+              letterSpacing: '0.16em', textTransform: 'uppercase',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              border: '1px solid var(--gold-border-mid)',
+              background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+              color: 'var(--gold-bright)', transition: 'all 0.18s',
+            }}
+          >
+            {showAddForm ? '✕ Cancel' : '+ Add Song'}
+          </button>
+        </div>
 
-      {/* ── Action bar ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '36px', flexWrap: 'wrap' }}>
-        <PrimaryBtn onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? '✕ Cancel' : '+ Add Song'}
-        </PrimaryBtn>
+        {/* Center: search + language filter */}
+        <div style={{
+          display: 'flex', alignItems: 'stretch', gap: '10px',
+          flex: '1 1 360px', justifyContent: 'center', minWidth: 0, flexWrap: 'wrap',
+        }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: '460px', minWidth: '200px' }}>
+            <span style={{
+              position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
+            }}>
+              ⌕
+            </span>
+            <VintageInput
+              placeholder="Search by title or artist…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              style={{ paddingLeft: '38px', paddingRight: search ? '38px' : '16px' }}
+            />
+            {search && (
+              <button
+                onClick={() => { setSearch(''); setPage(1); }}
+                style={{
+                  position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', color: 'var(--cream-muted)',
+                  cursor: 'pointer', fontSize: '1rem', padding: '4px 6px', lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Language filter */}
+          <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden', flex: '0 0 auto' }}>
+            {(
+              [
+                ['all',     <>All Songs</>],
+                ['greek',   <Flag key="gr" lang="greek" withLabel />],
+                ['english', <Flag key="gb" lang="english" withLabel />],
+              ] as const
+            ).map(([val, label], i) => {
+              const isActive = languageFilter === val;
+              return (
+                <button
+                  key={val}
+                  onClick={() => { setLanguageFilter(val); setPage(1); }}
+                  style={{
+                    padding: '10px 14px',
+                    fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                    fontSize: '0.8rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+                    cursor: 'pointer', border: 'none',
+                    borderRight: i < 2 ? '1px solid var(--gold-border)' : 'none',
+                    transition: 'all 0.15s',
+                    background: isActive ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
+                    color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
+                    fontWeight: isActive ? 600 : 400,
+                    minHeight: '44px', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ── Add form ── */}
@@ -247,69 +330,6 @@ export default function SongsLibrary() {
           </div>
         </div>
       )}
-
-      {/* ── Search bar ── */}
-      <div style={{ maxWidth: '520px', margin: '0 auto 24px', position: 'relative' }}>
-        <span style={{
-          position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
-          color: 'var(--gold-dim)', fontSize: '1rem', pointerEvents: 'none',
-        }}>
-          ⌕
-        </span>
-        <VintageInput
-          placeholder="Search by title or artist…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ paddingLeft: '38px', paddingRight: search ? '38px' : '16px' }}
-        />
-        {search && (
-          <button
-            onClick={() => { setSearch(''); setPage(1); }}
-            style={{
-              position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-              background: 'transparent', border: 'none', color: 'var(--cream-muted)',
-              cursor: 'pointer', fontSize: '1rem', padding: '4px 6px', lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      {/* ── Language filter ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-        <div style={{ display: 'flex', border: '1px solid var(--gold-border)', overflow: 'hidden' }}>
-          {(
-            [
-              ['all',     <>All Songs</>],
-              ['greek',   <Flag key="gr" lang="greek" withLabel />],
-              ['english', <Flag key="gb" lang="english" withLabel />],
-            ] as const
-          ).map(([val, label], i) => {
-            const isActive = languageFilter === val;
-            return (
-              <button
-                key={val}
-                onClick={() => { setLanguageFilter(val); setPage(1); }}
-                style={{
-                  padding: '12px 20px',
-                  fontFamily: 'var(--font-cormorant, Georgia, serif)',
-                  fontSize: '0.88rem', letterSpacing: '0.16em', textTransform: 'uppercase',
-                  cursor: 'pointer', border: 'none',
-                  borderRight: i < 2 ? '1px solid var(--gold-border)' : 'none',
-                  transition: 'all 0.15s',
-                  background: isActive ? 'linear-gradient(135deg, rgba(0,196,180,0.2), rgba(0,196,180,0.08))' : 'transparent',
-                  color: isActive ? 'var(--gold-bright)' : 'var(--cream-muted)',
-                  fontWeight: isActive ? 600 : 400,
-                  minHeight: '44px',
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* ── Heading ── */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
