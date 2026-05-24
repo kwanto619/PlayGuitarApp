@@ -80,11 +80,11 @@ export default function NotificationBell() {
 
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+          position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
           width: '320px', maxHeight: '420px', overflowY: 'auto',
           background: 'var(--bg-surface)',
           border: '1px solid var(--gold-border-mid)',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+          boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
           zIndex: 50,
         }}>
           <div style={{

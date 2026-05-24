@@ -132,38 +132,46 @@ function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
     <div style={{
       position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
       zIndex: 100,
-      background: 'rgba(6,6,6,0.92)',
-      border: '1px solid var(--gold-border-mid)',
+      background: 'rgba(6,6,6,0.96)',
+      border: '1px solid var(--gold)',
       backdropFilter: 'blur(12px)',
-      padding: '12px 20px',
-      display: 'flex', alignItems: 'center', gap: '16px',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.06)',
+      padding: '14px 24px',
+      display: 'flex', alignItems: 'center', gap: '20px',
+      boxShadow: '0 10px 36px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,196,180,0.18)',
       whiteSpace: 'nowrap',
     }}>
-      <span style={{ fontSize: '0.55rem', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
+      <span style={{
+        fontSize: '0.78rem', letterSpacing: '0.3em', textTransform: 'uppercase',
+        color: 'var(--gold-bright)', fontWeight: 600,
+        fontFamily: 'var(--font-cormorant, Georgia, serif)',
+      }}>
         Auto-scroll
       </span>
 
       <button
         onClick={() => setPlaying((p) => !p)}
         style={{
-          width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-          border: `1px solid ${playing ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
-          background: playing ? 'rgba(0,196,180,0.2)' : 'transparent',
-          color: playing ? 'var(--gold-bright)' : 'var(--cream-soft)',
-          fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '48px', height: '48px', borderRadius: '50%', cursor: 'pointer',
+          border: `1.5px solid ${playing ? 'var(--gold-bright)' : 'var(--gold)'}`,
+          background: playing ? 'rgba(0,196,180,0.28)' : 'rgba(0,196,180,0.1)',
+          color: playing ? 'var(--gold-bright)' : 'var(--cream)',
+          fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.15s',
         }}
       >
         {playing ? '⏸' : '▶'}
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={() => setSpeed((s) => Math.max(0.2, +(s - 0.2).toFixed(1)))}
           style={scrollNudge}
         >−</button>
-        <span style={{ fontSize: '0.75rem', color: 'var(--cream-soft)', minWidth: '28px', textAlign: 'center' }}>
+        <span style={{
+          fontSize: '1.1rem', color: 'var(--cream)', minWidth: '52px', textAlign: 'center',
+          fontFamily: 'var(--font-cormorant, Georgia, serif)', fontWeight: 600,
+          letterSpacing: '0.04em',
+        }}>
           {speed.toFixed(1)}×
         </span>
         <button
@@ -176,11 +184,11 @@ function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
 }
 
 const scrollNudge: React.CSSProperties = {
-  minWidth: '40px', height: '40px', padding: '0 10px',
+  minWidth: '48px', height: '48px', padding: '0 12px',
   cursor: 'pointer',
-  border: '1px solid var(--gold-border-mid)',
-  background: 'rgba(0,196,180,0.08)', color: 'var(--gold-bright)',
-  fontSize: '1.1rem', fontWeight: 600,
+  border: '1.5px solid var(--gold)',
+  background: 'rgba(0,196,180,0.14)', color: 'var(--gold-bright)',
+  fontSize: '1.5rem', fontWeight: 700,
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };
