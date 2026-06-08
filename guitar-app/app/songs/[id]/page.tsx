@@ -13,6 +13,7 @@ import AddToPlaylistButton from '@/components/AddToPlaylistButton';
 import Comments from '@/components/Comments';
 import { exportSongPdf } from '@/lib/pdf';
 import { useAuth } from '@/lib/auth';
+import { useDragScroll } from '@/lib/useDragScroll';
 import Flag from '@/components/Flag';
 
 // ── Shared style helpers ────────────────────────────────────────────────────
@@ -226,6 +227,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     youtubeUrl: '' as string,
   });
   const [lyricsFullscreen, setLyricsFullscreen] = useState(false);
+  const lyricsDrag = useDragScroll<HTMLPreElement>();
   const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
   const lyricsBoxRef = useRef<HTMLDivElement>(null);
   const lyricsPreRef = useRef<HTMLPreElement>(null);
@@ -746,7 +748,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                       Expand
                     </button>
                   </div>
-                  <pre className="lyrics-pre" style={{
+                  <pre className="lyrics-pre" {...lyricsDrag} style={{
                     whiteSpace: 'pre',
                     fontFamily: 'var(--font-ibm-mono, monospace)',
                     fontSize: 'clamp(0.78rem, 1.4vw, 1rem)',
@@ -757,6 +759,8 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                     margin: 0, lineHeight: 1.9,
                     overflowX: 'auto',
                     WebkitOverflowScrolling: 'touch',
+                    cursor: 'grab',
+                    userSelect: 'none',
                   }}>
                     {parseLyrics(song.lyrics).map((seg, i) => {
                       if (seg.type !== 'chord') return <span key={i}>{seg.content}</span>;
