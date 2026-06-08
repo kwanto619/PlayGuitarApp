@@ -3,8 +3,10 @@ import { supabase } from './supabase';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function currentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
+  // getSession() reads the cached session locally; getUser() hits the network
+  // to re-validate the token on every call, adding a round trip we don't need.
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
 }
 
 type SongRow = {
@@ -47,10 +49,63 @@ async function attachSongUsernames(rows: SongRow[]): Promise<Song[]> {
   return rows.map((r) => mapSong(r, names));
 }
 
-export const loadSongs = async (): Promise<Song[]> => {
+// ── Client-side cache (stale-while-revalidate) ──────────────────────────────
+// Page navigations were re-fetching the full song list from Supabase every
+// time, so returning to the library felt slow. We keep the last result in
+// memory and serve it instantly, refreshing in the background. Mutations bust
+// the cache so edits show up immediately.
+let songsCache: Song[] | null = null;
+const SONGS_TTL = 30_000; // ms before a background revalidation is triggered
+let songsCacheAt = 0;
+let songsInflight: Promise<Song[]> | null = null;
+const songsListeners = new Set<(songs: Song[]) => void>();
+
+/** Subscribe to song-list updates (background revalidation, mutations). */
+export const subscribeSongs = (cb: (songs: Song[]) => void): (() => void) => {
+  songsListeners.add(cb);
+  return () => { songsListeners.delete(cb); };
+};
+
+function setSongsCache(songs: Song[]) {
+  songsCache = songs;
+  songsCacheAt = Date.now();
+  songsListeners.forEach((cb) => cb(songs));
+}
+
+async function fetchSongs(): Promise<Song[]> {
   const { data, error } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
-  if (error) { console.error('loadSongs:', error); return []; }
-  return attachSongUsernames(data as SongRow[]);
+  if (error) { console.error('loadSongs:', error); return songsCache ?? []; }
+  const songs = await attachSongUsernames(data as SongRow[]);
+  setSongsCache(songs);
+  return songs;
+}
+
+export const loadSongs = async (): Promise<Song[]> => {
+  // Fresh cache → serve instantly.
+  if (songsCache) {
+    // Stale → kick a background revalidation (listeners get the fresh data).
+    if (Date.now() - songsCacheAt > SONGS_TTL && !songsInflight) {
+      songsInflight = fetchSongs().finally(() => { songsInflight = null; });
+    }
+    return songsCache;
+  }
+  // No cache → coalesce concurrent callers onto one request.
+  if (!songsInflight) {
+    songsInflight = fetchSongs().finally(() => { songsInflight = null; });
+  }
+  return songsInflight;
+};
+
+/** Force a network refresh and update the cache + listeners. */
+export const refreshSongs = async (): Promise<Song[]> => {
+  songsInflight = fetchSongs().finally(() => { songsInflight = null; });
+  return songsInflight;
+};
+
+/** Drop the cache (call on sign-in/out — RLS scopes results per user). */
+export const clearSongsCache = (): void => {
+  songsCache = null;
+  songsCacheAt = 0;
 };
 
 export const loadAllPublicSongs = async (): Promise<Song[]> => {
@@ -66,6 +121,10 @@ export const loadSongsByUser = async (userId: string): Promise<Song[]> => {
 };
 
 export const loadSongById = async (id: string): Promise<Song | null> => {
+  // Served from the list cache when available (the common path: open a song
+  // straight from the library) — avoids two serial round trips.
+  const cached = songsCache?.find((s) => s.id === id);
+  if (cached) return cached;
   const { data, error } = await supabase.from('songs').select('*').eq('id', id).maybeSingle();
   if (error || !data) return null;
   const [song] = await attachSongUsernames([data as SongRow]);
@@ -82,13 +141,13 @@ export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
     user_id: uid,
   });
   if (error) { console.error('addSong:', error); throw new Error('Failed to add song'); }
-  return loadSongs();
+  return refreshSongs();
 };
 
 export const deleteSong = async (id: string): Promise<Song[]> => {
   const { error } = await supabase.from('songs').delete().eq('id', id);
   if (error) { console.error('deleteSong:', error); throw new Error('Failed to delete song'); }
-  return loadSongs();
+  return refreshSongs();
 };
 
 export const updateSong = async (id: string, s: Partial<Song>): Promise<Song[]> => {
@@ -101,7 +160,7 @@ export const updateSong = async (id: string, s: Partial<Song>): Promise<Song[]> 
     updated_at: new Date().toISOString(),
   }).eq('id', id);
   if (error) { console.error('updateSong:', error); throw new Error('Failed to update song'); }
-  return loadSongs();
+  return refreshSongs();
 };
 
 export const exportSongs = async (): Promise<void> => {
@@ -130,7 +189,7 @@ export const importSongs = async (file: File): Promise<Song[]> => {
         }));
         const { error } = await supabase.from('songs').insert(rows);
         if (error) reject(new Error('Failed to import songs'));
-        else resolve(await loadSongs());
+        else resolve(await refreshSongs());
       } catch { reject(new Error('Invalid file format')); }
     };
     reader.onerror = () => reject(new Error('Failed to read file'));

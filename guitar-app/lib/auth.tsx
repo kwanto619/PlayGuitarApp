@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { clearSongsCache } from './storage';
 
 interface AuthCtx {
   user: User | null;
@@ -29,7 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
+      // Song list is RLS-scoped per user — drop the cache when identity changes.
+      if (evt === 'SIGNED_IN' || evt === 'SIGNED_OUT') clearSongsCache();
       setSession(s);
     });
     return () => { sub.subscription.unsubscribe(); };

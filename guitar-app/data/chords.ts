@@ -120,4 +120,20 @@ export const chords: Chord[] = [
   { name: 'Gadd9',  type: 'add9', strings: [3,2,'o',2,'o',3],      fingers: [2,1,0,3,0,4], baseFret: 1 },
   { name: 'Aadd9',  type: 'add9', strings: ['x','o',2,4,2,'o'],    fingers: [0,0,1,4,2,0], baseFret: 1 },
   { name: 'Badd9',  type: 'add9', strings: ['x',2,4,4,4,2],        fingers: [0,1,3,4,2,1], baseFret: 2 },
+
+  // ── EXTRA SHAPES (added to cover chords found in the song library) ─────────
+  // Diminished on sharp roots / diminished 7ths
+  { name: 'F#dim',  type: 'dim',  strings: [2,3,4,5,4,'x'],        fingers: [1,2,3,4,3,0], baseFret: 2 },
+  { name: 'Cdim7',  type: 'dim7', strings: ['x',3,4,5,4,'x'],      fingers: [0,1,2,4,3,0], baseFret: 3 },
+  { name: 'Bdim7',  type: 'dim7', strings: ['x',2,3,4,3,'x'],      fingers: [0,1,2,4,3,0], baseFret: 2 },
+  // Sixth chords
+  { name: 'F6',     type: '6th',  strings: ['x','x',3,2,3,1],      fingers: [0,0,3,2,4,1], baseFret: 1 },
+  { name: 'A#6',    type: '6th',  strings: ['x','x',8,7,8,6],      fingers: [0,0,3,2,4,1], baseFret: 6 },
+  // Ninth chords
+  { name: 'Am9',    type: '9th',  strings: ['x','o',2,4,1,'o'],    fingers: [0,0,2,4,1,0], baseFret: 1 },
+  { name: 'Ammaj9', type: 'maj9', strings: ['x','o',2,1,'o','o'],  fingers: [0,0,2,1,0,0], baseFret: 1 },
+  // 7sus4
+  { name: 'B7sus4', type: '7sus4', strings: ['x',2,2,2,'o',2],     fingers: [0,1,2,3,0,4], baseFret: 1 },
+  // Power chords (root + fifth)
+  { name: 'D#5',    type: 'power', strings: ['x',6,8,'x','x','x'], fingers: [0,1,3,0,0,0], baseFret: 6 },
 ];

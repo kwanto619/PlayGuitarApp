@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { chords as chordLibrary } from '@/data/chords';
 import ChordDiagram from './ChordDiagram';
-import { Chord } from '@/types';
+import { resolveChord, CHORD_TOKEN } from '@/lib/chordResolve';
 
 interface TooltipPos {
   top: number;
@@ -20,7 +19,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
   const [pos, setPos]       = useState<TooltipPos | null>(null);
   const [isTouch, setIsTouch] = useState(false);
   const triggerRef          = useRef<HTMLSpanElement>(null);
-  const chord: Chord | undefined = chordLibrary.find((c) => c.name === name);
+  const resolved = resolveChord(name);
 
   // Detect touch-primary devices once on mount
   useEffect(() => {
@@ -53,7 +52,8 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
     return () => document.removeEventListener('touchstart', handleOutside);
   }, [isTouch, pos]);
 
-  if (!chord) return <>{children}</>;
+  if (!resolved) return <>{children}</>;
+  const { chord, display, bass } = resolved;
 
   const getPos = () => {
     if (!triggerRef.current) return;
@@ -123,7 +123,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
               marginBottom: '4px',
               textShadow: '0 0 20px rgba(0,232,213,0.2)',
             }}>
-              {chord.name}
+              {display}
             </div>
 
             {/* Type */}
@@ -134,7 +134,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
               textTransform: 'uppercase', color: 'var(--gold-dim)',
               marginBottom: '8px',
             }}>
-              {chord.type}
+              {chord.type}{bass ? ` · bass ${bass}` : ''}
             </div>
 
             {/* Divider */}
@@ -204,15 +204,6 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
 }
 
 // ── Lyrics parser ────────────────────────────────────────────────────────────
-const sortedChordNames = [...chordLibrary]
-  .sort((a, b) => b.name.length - a.name.length)
-  .map((c) => c.name.replace(/[#]/g, '\\$&'));
-
-const CHORD_PATTERN = new RegExp(
-  `(?<![A-Za-z])(${sortedChordNames.join('|')})(?![A-Za-z0-9])`,
-  'g',
-);
-
 export type LyricsSegment = { type: 'text' | 'chord'; content: string };
 
 // Decode HTML entities at render time so old songs imported before the
@@ -258,23 +249,37 @@ function decodeEntitiesInline(s: string): string {
     );
 }
 
+function pushText(segments: LyricsSegment[], content: string) {
+  // Merge consecutive text runs so unresolved tokens fold back into lyrics.
+  const last = segments[segments.length - 1];
+  if (last && last.type === 'text') last.content += content;
+  else segments.push({ type: 'text', content });
+}
+
 export function parseLyrics(rawText: string): LyricsSegment[] {
   const text = decodeEntitiesInline(rawText);
   const segments: LyricsSegment[] = [];
   let lastIndex = 0;
-  CHORD_PATTERN.lastIndex = 0;
+  CHORD_TOKEN.lastIndex = 0;
 
   let match: RegExpExecArray | null;
-  while ((match = CHORD_PATTERN.exec(text)) !== null) {
+  while ((match = CHORD_TOKEN.exec(text)) !== null) {
+    const token = match[1];
     if (match.index > lastIndex) {
-      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      pushText(segments, text.slice(lastIndex, match.index));
     }
-    segments.push({ type: 'chord', content: match[1] });
-    lastIndex = CHORD_PATTERN.lastIndex;
+    // Only treat as a chord if it actually resolves to a shape; otherwise it's
+    // ordinary text (e.g. a stray capital letter) and folds back in.
+    if (resolveChord(token)) {
+      segments.push({ type: 'chord', content: token });
+    } else {
+      pushText(segments, token);
+    }
+    lastIndex = CHORD_TOKEN.lastIndex;
   }
 
   if (lastIndex < text.length) {
-    segments.push({ type: 'text', content: text.slice(lastIndex) });
+    pushText(segments, text.slice(lastIndex));
   }
 
   return segments;

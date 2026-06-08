@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, updateSong, subscribeSongs } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
 import Flag from './Flag';
 
@@ -141,7 +141,11 @@ export default function SongsLibrary() {
   const blankForm = { title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'english' as 'greek' | 'english' };
   const [newSong, setNewSong] = useState(blankForm);
 
-  useEffect(() => { loadSongs().then(setSongs); }, []);
+  useEffect(() => {
+    loadSongs().then(setSongs);
+    // Stay in sync when a background revalidation or mutation updates the cache.
+    return subscribeSongs(setSongs);
+  }, []);
 
   const handleAddSong = async () => {
     if (!newSong.title || !newSong.artist) { alert('Title and artist are required!'); return; }
