@@ -4,8 +4,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
 import { loadSongs, addSong, deleteSong, updateSong, subscribeSongs } from '@/lib/storage';
+import { getPlayCounts, bumpPlayCount, PlayCounts } from '@/lib/playCounts';
 import GeneralImport from './GeneralImport';
 import Flag from './Flag';
+
+type SortKey = 'newest' | 'oldest' | 'rating' | 'watched';
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest',  label: 'Newest first' },
+  { value: 'oldest',  label: 'Oldest first' },
+  { value: 'rating',  label: 'Top rated' },
+  { value: 'watched', label: 'Most watched' },
+];
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -117,19 +126,28 @@ export default function SongsLibrary() {
     initialLang === 'greek' || initialLang === 'english' ? initialLang : 'all'
   );
   const [search,         setSearch]         = useState(searchParams.get('q') || '');
+  const initialSort = searchParams.get('sort') as SortKey | null;
+  const [sort,           setSort]           = useState<SortKey>(
+    initialSort && SORT_OPTIONS.some((o) => o.value === initialSort) ? initialSort : 'newest'
+  );
+  const [playCounts,     setPlayCounts]     = useState<PlayCounts>({});
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   const [page,           setPage]           = useState(initialPage);
   const PAGE_SIZE = 15;
+
+  // Load view counts (localStorage) on mount — guarded so SSR doesn't touch window.
+  useEffect(() => { setPlayCounts(getPlayCounts()); }, []);
 
   // Keep URL in sync with filter/page/search so back-nav restores state
   useEffect(() => {
     const params = new URLSearchParams();
     if (languageFilter !== 'all') params.set('lang', languageFilter);
+    if (sort !== 'newest') params.set('sort', sort);
     if (page > 1) params.set('page', String(page));
     if (search.trim()) params.set('q', search.trim());
     const qs = params.toString();
     router.replace(qs ? `/songs?${qs}` : '/songs', { scroll: false });
-  }, [languageFilter, page, search, router]);
+  }, [languageFilter, sort, page, search, router]);
 
   // Scroll to top when user changes page (skip initial mount so back-nav restore is preserved)
   const firstPageRender = useRef(true);
@@ -191,9 +209,21 @@ export default function SongsLibrary() {
     }
     return true;
   });
-  const totalPages  = Math.max(1, Math.ceil(filteredSongs.length / PAGE_SIZE));
+
+  const byNewest = (a: Song, b: Song) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+  const sortedSongs = [...filteredSongs].sort((a, b) => {
+    switch (sort) {
+      case 'oldest':  return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+      // Ties fall back to newest so ordering is stable & meaningful.
+      case 'rating':  return (b.rating ?? 0) - (a.rating ?? 0) || byNewest(a, b);
+      case 'watched': return (playCounts[b.id] ?? 0) - (playCounts[a.id] ?? 0) || byNewest(a, b);
+      default:        return byNewest(a, b);
+    }
+  });
+
+  const totalPages  = Math.max(1, Math.ceil(sortedSongs.length / PAGE_SIZE));
   const safePage    = Math.min(page, totalPages);
-  const visibleSongs = filteredSongs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const visibleSongs = sortedSongs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleRating = async (songId: string, rating: number) => {
     const song = songs.find((s) => s.id === songId);
@@ -336,7 +366,7 @@ export default function SongsLibrary() {
       )}
 
       {/* ── Heading ── */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <h3 style={{
           fontFamily: 'var(--font-cormorant, Georgia, serif)',
           fontSize: '1.8rem', fontWeight: 500, letterSpacing: '0.06em',
@@ -347,6 +377,41 @@ export default function SongsLibrary() {
         <span style={{ fontSize: '0.8rem', letterSpacing: '0.2em', color: 'var(--cream-muted)', textTransform: 'uppercase' }}>
           ({filteredSongs.length})
         </span>
+
+        {/* Sort control */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label htmlFor="song-sort" style={{
+            fontSize: '0.62rem', letterSpacing: '0.32em', textTransform: 'uppercase',
+            color: 'var(--gold-dim)', fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          }}>
+            Sort
+          </label>
+          <select
+            id="song-sort"
+            value={sort}
+            onChange={(e) => { setSort(e.target.value as SortKey); setPage(1); }}
+            style={{
+              padding: '8px 30px 8px 12px',
+              fontFamily: 'var(--font-cormorant, Georgia, serif)',
+              fontSize: '0.88rem', letterSpacing: '0.06em',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--gold-border-mid)',
+              color: 'var(--cream)', cursor: 'pointer', outline: 'none',
+              minHeight: '40px',
+              appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+              backgroundImage: 'linear-gradient(45deg, transparent 50%, var(--gold-dim) 50%), linear-gradient(135deg, var(--gold-dim) 50%, transparent 50%)',
+              backgroundPosition: 'right 14px center, right 9px center',
+              backgroundSize: '5px 5px, 5px 5px',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value} style={{ background: 'var(--bg-surface)', color: 'var(--cream)' }}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* ── Song grid ── */}
@@ -372,6 +437,7 @@ export default function SongsLibrary() {
               key={song.id}
               song={song}
               onClick={() => {
+                setPlayCounts(bumpPlayCount(song.id));
                 const params = new URLSearchParams();
                 params.set('fromPage', String(safePage));
                 if (languageFilter !== 'all') params.set('fromLang', languageFilter);
