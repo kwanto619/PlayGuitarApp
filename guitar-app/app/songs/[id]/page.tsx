@@ -394,7 +394,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-deep)', paddingBottom: '80px' }}>
       {/* ── Top bar ── */}
-      <div style={{
+      <div className="song-topbar" style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%)',
         borderBottom: '1px solid var(--gold-border)',
@@ -414,7 +414,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div className="song-topbar-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!editMode && <FavoriteButton songId={id} />}
           {!editMode && user && <AddToPlaylistButton songId={id} />}
           {!editMode && song && (

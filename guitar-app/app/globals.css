@@ -188,6 +188,31 @@ button, a, [role="button"], input, textarea, select, label {
   }
 }
 
+/* Song page top bar: keep every action reachable on narrow phones.
+   The single fixed-height row overflows on mobile, so let the action
+   cluster wrap onto extra rows and compact the buttons (inline styles
+   need !important to override). Back button stays pinned top-left. */
+@media (max-width: 640px) {
+  .song-topbar {
+    height: auto !important;
+    align-items: flex-start !important;
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+  .song-topbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 8px !important;
+  }
+  .song-topbar button {
+    padding: 9px 12px !important;
+    letter-spacing: 0.08em !important;
+    font-size: 0.78rem !important;
+    gap: 6px !important;
+  }
+}
+
 /* Playlist row: stable two-row layout on narrow screens */
 .playlist-row {
   display: grid;
