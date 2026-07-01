@@ -163,6 +163,26 @@ export const updateSong = async (id: string, s: Partial<Song>): Promise<Song[]> 
   return refreshSongs();
 };
 
+// ── Song views (cross-device play counts, powers "Most watched") ──────────────
+/** Load this user's per-song open counts as a { songId: count } map. */
+export const loadPlayCounts = async (): Promise<Record<string, number>> => {
+  const uid = await currentUserId();
+  if (!uid) return {};
+  const { data, error } = await supabase.from('song_views').select('song_id, count').eq('user_id', uid);
+  if (error) { console.error('loadPlayCounts:', error); return {}; }
+  const out: Record<string, number> = {};
+  (data ?? []).forEach((r) => { out[r.song_id] = r.count; });
+  return out;
+};
+
+/** Atomically increment a song's open count for the signed-in user. */
+export const bumpSongView = async (songId: string): Promise<void> => {
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { error } = await supabase.rpc('bump_song_view', { p_song_id: songId });
+  if (error) console.error('bumpSongView:', error);
+};
+
 export const exportSongs = async (): Promise<void> => {
   const songs = await loadSongs();
   const dataStr = JSON.stringify(songs, null, 2);

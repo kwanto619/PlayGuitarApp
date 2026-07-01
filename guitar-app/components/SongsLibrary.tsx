@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong, subscribeSongs } from '@/lib/storage';
-import { getPlayCounts, bumpPlayCount, PlayCounts } from '@/lib/playCounts';
+import { loadSongs, addSong, deleteSong, updateSong, subscribeSongs, loadPlayCounts, bumpSongView } from '@/lib/storage';
 import GeneralImport from './GeneralImport';
 import Flag from './Flag';
 
+type PlayCounts = Record<string, number>;
 type SortKey = 'newest' | 'oldest' | 'rating' | 'watched';
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'newest',  label: 'Newest first' },
@@ -135,8 +135,8 @@ export default function SongsLibrary() {
   const [page,           setPage]           = useState(initialPage);
   const PAGE_SIZE = 15;
 
-  // Load view counts (localStorage) on mount — guarded so SSR doesn't touch window.
-  useEffect(() => { setPlayCounts(getPlayCounts()); }, []);
+  // Load this user's view counts from the DB (cross-device) on mount.
+  useEffect(() => { loadPlayCounts().then(setPlayCounts); }, []);
 
   // Keep URL in sync with filter/page/search so back-nav restores state
   useEffect(() => {
@@ -437,7 +437,9 @@ export default function SongsLibrary() {
               key={song.id}
               song={song}
               onClick={() => {
-                setPlayCounts(bumpPlayCount(song.id));
+                // Optimistic bump so re-sorting feels instant; DB write is fire-and-forget.
+                setPlayCounts((prev) => ({ ...prev, [song.id]: (prev[song.id] ?? 0) + 1 }));
+                bumpSongView(song.id);
                 const params = new URLSearchParams();
                 params.set('fromPage', String(safePage));
                 if (languageFilter !== 'all') params.set('fromLang', languageFilter);
