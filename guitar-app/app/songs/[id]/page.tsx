@@ -819,22 +819,24 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
             borderBottom: '1px solid var(--gold-border)',
             flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{
+            <div className="fs-titlewrap" style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0, overflow: 'hidden' }}>
+              <span className="fs-title" style={{
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: '1.1rem', color: 'var(--gold-bright)', fontWeight: 600,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {song.title}
               </span>
-              <span style={{
+              <span className="fs-artist" style={{
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: '0.9rem', color: 'var(--cream-muted)', fontStyle: 'italic',
+                whiteSpace: 'nowrap',
               }}>
                 {song.artist}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.55rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
+            <div className="fs-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <span className="fs-size-label" style={{ fontSize: '0.55rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
                 Size
               </span>
               <button
