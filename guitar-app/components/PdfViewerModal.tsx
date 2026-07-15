@@ -231,7 +231,10 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               </div>
             </header>
 
-            <div className="pdf-scroll" ref={scrollRef}>
+            {/* data-lenis-prevent: Lenis hijacks the wheel on desktop and drives
+                window scroll, so without this the event never reaches this
+                container and a zoomed page can't be panned. */}
+            <div className="pdf-scroll" ref={scrollRef} data-lenis-prevent>
               {loading && <p className="pdf-msg">Loading book…</p>}
               {error && <p className="pdf-msg pdf-err">{error}</p>}
               <canvas ref={canvasRef} className="pdf-canvas" />
