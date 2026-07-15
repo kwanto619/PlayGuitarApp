@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FiMenu, FiX, FiArrowRight, FiMusic, FiGrid, FiHeart, FiRss, FiHome,
-  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch,
+  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch, FiBook,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import UserMenu from './UserMenu';
@@ -20,6 +20,7 @@ const ITEMS: Item[] = [
   { kind: 'leaf', href: '/chords',    label: 'Chord Library', Icon: FiGrid,  desc: 'Shapes & diagrams' },
   { kind: 'leaf', href: '/playlists', label: 'Playlists',     Icon: FiMusic, desc: 'Your setlists' },
   { kind: 'leaf', href: '/favorites', label: 'Favorites',     Icon: FiHeart, desc: 'Starred songs' },
+  { kind: 'leaf', href: '/books',     label: 'Music Books',   Icon: FiBook,  desc: 'Your private shelf' },
   {
     kind: 'group', id: 'tools', label: 'Tools', Icon: FiTool,
     children: [
