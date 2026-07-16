@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { addSong } from '@/lib/storage';
 import { Song } from '@/types';
 import Flag from './Flag';
@@ -169,6 +169,11 @@ function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'sit
         .split('\n').map((l) => l.trimEnd()).join('\n')
         .replace(/\n{3,}/g, '\n\n').trim();
     }
+  }
+
+  // Rendered-page paste has no sndType attributes — read chords from the chord lines
+  if (chordSet.size === 0 && lyrics) {
+    for (const c of extractChordsFromTab(lyrics)) chordSet.add(c);
   }
 
   return { title, artist, chords: [...chordSet], language, lyrics, lyricsSnippet: '' };
@@ -529,6 +534,14 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
     title: '', artist: '', chords: '', lyrics: '', notes: '',
     language: 'greek' as 'greek' | 'english',
   });
+
+  // Lock page scroll while the modal is open so wheel/touch scrolls the modal, not the page
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   const reset = () => {
     setOpen(false); setStep('url'); setUrl(''); setSite('unknown');
