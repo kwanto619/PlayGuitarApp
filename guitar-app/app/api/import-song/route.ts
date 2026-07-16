@@ -1,56 +1,15 @@
 import { NextRequest } from 'next/server';
 
-function stripHtml(s: string): string {
-  return s
-    .replace(/<[^>]+>/g, '')
-    .replace(/&shy;/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/\u201c|\u201d|\u00ab|\u00bb|"|"/g, '') // remove decorative quotes
-    .trim();
-}
+// Only fetch from the tab sites the importer knows how to parse (prevents SSRF)
+const ALLOWED_HOSTS = [
+  'kithara.to',
+  'tabsy.gr',
+  'ultimate-guitar.com',
+  'tabs4acoustic.com',
+];
 
-/** Extract the full inner HTML of the first <div id="id"> accounting for nested divs */
-function extractDivById(html: string, id: string): string | null {
-  let idx = html.indexOf(`id="${id}"`);
-  if (idx === -1) idx = html.indexOf(`id='${id}'`);
-  if (idx === -1) return null;
-
-  const divStart = html.lastIndexOf('<div', idx);
-  if (divStart === -1) return null;
-
-  const tagEnd = html.indexOf('>', divStart);
-  if (tagEnd === -1) return null;
-
-  const contentStart = tagEnd + 1;
-  let pos = contentStart;
-  let depth = 1;
-
-  while (depth > 0) {
-    const nextOpen  = html.indexOf('<div',  pos);
-    const nextClose = html.indexOf('</div', pos);
-    if (nextClose === -1) return null;
-    if (nextOpen !== -1 && nextOpen < nextClose) { depth++; pos = nextOpen + 4; }
-    else { depth--; if (depth === 0) return html.slice(contentStart, nextClose); pos = nextClose + 6; }
-  }
-  return null;
-}
-
-function parseJsonLd(html: string): Record<string, unknown>[] {
-  const results: Record<string, unknown>[] = [];
-  const re = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    try {
-      const parsed = JSON.parse(m[1]);
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      results.push(...arr);
-    } catch { /* skip malformed */ }
-  }
-  return results;
+function isAllowedHost(hostname: string): boolean {
+  return ALLOWED_HOSTS.some((h) => hostname === h || hostname.endsWith('.' + h));
 }
 
 export async function POST(req: NextRequest) {
@@ -65,129 +24,30 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'URL is required' }, { status: 400 });
   }
 
-  // Fetch the page — try direct first, fall back to proxy if blocked
-  let html: string;
-  let httpStatus: number;
+  let parsed: URL;
   try {
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'el-GR,el;q=0.9,en;q=0.8',
-      'Cache-Control': 'no-cache',
-    };
+    parsed = new URL(url);
+  } catch {
+    return Response.json({ error: 'Invalid URL' }, { status: 400 });
+  }
 
-    const res = await fetch(url, { headers });
-    httpStatus = res.status;
+  if (parsed.protocol !== 'https:' || !isAllowedHost(parsed.hostname)) {
+    return Response.json({ error: 'URL is not from a supported site' }, { status: 400 });
+  }
 
-    html = await res.text();
+  try {
+    const res = await fetch(parsed.href, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'el-GR,el;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = await res.text();
+    return Response.json({ html, status: res.status });
   } catch (e) {
     return Response.json({ error: 'Failed to fetch the URL: ' + (e as Error).message }, { status: 502 });
   }
-
-  let title = '';
-  let artist = '';
-  let lyricsSnippet = '';
-  let language: 'greek' | 'english' = 'greek';
-  let lyrics = '';
-  let chords: string[] = [];
-  let lyricsBlocked = false;
-  let parseError = '';
-
-  try {
-    // ── Title ────────────────────────────────────────────────────────────────
-    const titleM = html.match(/<h1[^>]*class="ti"[^>]*>([\s\S]*?)<\/h1>/);
-    if (titleM) title = stripHtml(titleM[1]);
-
-    // ── Artist ───────────────────────────────────────────────────────────────
-    const artistM = html.match(/<h2[^>]*class="ar"[^>]*>([\s\S]*?)<\/h2>/);
-    if (artistM) artist = stripHtml(artistM[1]);
-
-    // ── JSON-LD enrichment ───────────────────────────────────────────────────
-    const jsonLdItems = parseJsonLd(html);
-    for (const item of jsonLdItems) {
-      if (item['@type'] === 'MusicComposition') {
-        if (!title && item.name) title = stripHtml(String(item.name));
-        if (!artist) {
-          const rec = item.recordedAs as Record<string, unknown> | undefined;
-          const byArtist = rec?.byArtist as Record<string, unknown> | undefined;
-          if (byArtist?.name) artist = stripHtml(String(byArtist.name));
-        }
-        const lyricsObj = item.lyrics as Record<string, unknown> | undefined;
-        if (lyricsObj?.text && !lyricsSnippet) {
-          lyricsSnippet = stripHtml(String(lyricsObj.text));
-        }
-        const lang = String(item.inLanguage ?? '');
-        if (lang.startsWith('en')) language = 'english';
-      }
-      if (item['@type'] === 'WebPage') {
-        const lang = String(item.inLanguage ?? '');
-        if (lang.startsWith('en')) language = 'english';
-      }
-    }
-
-    // ── Lyrics from #text div ─────────────────────────────────────────────────
-    const textDivContent = extractDivById(html, 'text');
-    if (textDivContent) {
-      lyrics = textDivContent
-        .replace(/<a[^>]*class="clickPlay"[^>]*>([^<]+)<\/a>/g, '[$1]')
-        .replace(/<\/?(span|a|em|strong|b|i)[^>]*>/g, '')
-        .replace(/<\/p>\s*<p[^>]*>/g, '\n\n')
-        .replace(/<p[^>]*>/g, '')
-        .replace(/<\/p>/g, '\n\n')
-        .replace(/<\/div>\s*<div[^>]*>/g, '\n\n')
-        .replace(/<\/?div[^>]*>/g, '\n')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&shy;/g, '')
-        .replace(/&amp;/g, '&')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .split('\n').map((l) => l.trimEnd()).join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-    }
-    if (!lyrics) lyrics = lyricsSnippet;
-
-    // ── Chords ────────────────────────────────────────────────────────────────
-    const chordSet = new Set<string>();
-    const clickPlayRe = /class="clickPlay"[^>]*>([A-G][^<]{0,8})<\/a>/g;
-    let cm: RegExpExecArray | null;
-    while ((cm = clickPlayRe.exec(html)) !== null) {
-      const chord = cm[1].trim().replace(/\s+/g, '');
-      if (chord) chordSet.add(chord);
-    }
-    chords = [...chordSet];
-
-    // ── Lyrics blocked detection ──────────────────────────────────────────────
-    lyricsBlocked = html.includes('checkVic') || html.includes('Προστασία υπερφόρτωσης');
-
-  } catch (e) {
-    parseError = (e as Error).message;
-  }
-
-  const siteBlocked = httpStatus === 403 || httpStatus === 429;
-
-  return Response.json({
-    title,
-    artist,
-    chords,
-    language,
-    lyrics,
-    lyricsSnippet,
-    lyricsBlocked,
-    siteBlocked,
-    _debug: {
-      httpStatus,
-      htmlLength: html.length,
-      htmlSnippet: html.slice(0, 600),
-      hasTitleTag: /<h1[^>]*class="ti"/.test(html),
-      hasArtistTag: /<h2[^>]*class="ar"/.test(html),
-      hasTextDiv: html.includes('id="text"'),
-      hasClickPlay: html.includes('clickPlay'),
-      hasJsonLd: html.includes('application/ld+json'),
-      parseError,
-    },
-  });
 }

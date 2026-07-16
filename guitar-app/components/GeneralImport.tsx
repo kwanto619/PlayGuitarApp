@@ -26,6 +26,19 @@ function detectSite(url: string): Site {
   return 'unknown';
 }
 
+/** Detect the source site from pasted HTML when no URL was entered */
+function sniffSiteFromHtml(html: string): Site {
+  if (html.includes('js-store') && html.includes('ultimate-guitar')) return 'ug';
+  if (html.includes('kithara')) return 'kithara';
+  if (html.includes('tabsy') || html.includes('sygxordies')) return 'tabsy';
+  if (html.includes('tabs4acoustic') || html.includes('T4A_TAB_ID')) return 't4a';
+  return 'unknown';
+}
+
+// One-tap bookmarklet: copies the rendered page HTML (incl. decrypted lyrics)
+// to the clipboard so it can be pasted straight into the import box.
+const BOOKMARKLET = `javascript:(function(){var h=document.documentElement.outerHTML;function f(){var t=document.createElement('textarea');t.style.position='fixed';t.value=h;document.body.appendChild(t);t.focus();t.select();try{document.execCommand('copy');alert('Songcord: page copied. Paste it in the import box.');}catch(e){alert('Songcord: copy failed.');}document.body.removeChild(t);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(h).then(function(){alert('Songcord: page copied. Paste it in the import box.');},f);}else{f();}})();`;
+
 // ── Shared HTML utilities ─────────────────────────────────────────────────────
 function decodeEntities(s: string): string {
   return s
@@ -490,6 +503,7 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
   const [error,      setError]      = useState('');
   const [saving,     setSaving]     = useState(false);
   const [lyricsBlocked, setLyricsBlocked] = useState(false);
+  const [bmCopied,   setBmCopied]   = useState(false);
 
   const [form, setForm] = useState({
     title: '', artist: '', chords: '', lyrics: '', notes: '',
@@ -499,7 +513,7 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
   const reset = () => {
     setOpen(false); setStep('url'); setUrl(''); setSite('unknown');
     setPastedHtml(''); setError(''); setLoading(false); setSaving(false);
-    setLyricsBlocked(false);
+    setLyricsBlocked(false); setBmCopied(false);
     setForm({ title: '', artist: '', chords: '', lyrics: '', notes: '', language: 'greek' });
   };
 
@@ -532,32 +546,50 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
       ];
 
       const isValidHtml = (t: string) => {
-        if (detectedSite === 'kithara') return t.includes('kithara') || t.includes('class="ti"') || t.includes('id="text"');
-        if (detectedSite === 'tabsy')   return t.includes('tabsy') || t.includes('__NUXT') || t.includes('sygxordies');
-        if (detectedSite === 'ug')      return t.includes('js-store') || t.includes('ultimate-guitar');
-        if (detectedSite === 't4a')     return t.includes('tabs4acoustic') || t.includes('T4A_TAB_ID');
+        if (detectedSite === 'kithara') return t.includes('class="ti"') || t.includes('id="text"');
+        if (detectedSite === 'tabsy')   return t.includes('__NUXT') || t.includes('sygxordies');
+        if (detectedSite === 'ug')      return t.includes('js-store');
+        if (detectedSite === 't4a')     return t.includes('T4A_TAB_ID') || t.includes('alt="Chord');
         return t.length > 1000;
       };
 
-      // UG uses Cloudflare — skip proxies and go straight to paste fallback
-      if (detectedSite === 'ug') {
+      let html = '';
+
+      // 1. Try the app's own server first — no CORS, no third-party rate limits
+      try {
+        const res = await fetch('/api/import-song', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: target }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.html === 'string' && isValidHtml(data.html)) html = data.html;
+        }
+      } catch { /* fall through to proxies */ }
+
+      // UG uses Cloudflare — if the server fetch didn't get through, proxies won't either
+      if (!html && detectedSite === 'ug') {
         setStep('paste-html');
         return;
       }
 
-      let html = '';
-      for (const proxyUrl of proxies) {
-        try {
-          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-          if (res.ok) {
-            const text = await res.text();
-            if (isValidHtml(text)) { html = text; break; }
-          }
-        } catch { /* try next */ }
+      // 2. Fall back to public CORS proxies
+      if (!html) {
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+            if (res.ok) {
+              const text = await res.text();
+              if (isValidHtml(text)) { html = text; break; }
+            }
+          } catch { /* try next */ }
+        }
       }
 
       if (!html) {
-        setError('All proxies failed or were rate-limited. Wait a moment and try again, or use the "Paste page source" fallback.');
+        setError('Automatic fetch failed (the site is blocking requests). Wait a moment and try again, or use the "Paste page source" fallback.');
         return;
       }
 
@@ -571,7 +603,8 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
       }
 
       applyParsed(parsed);
-      if (detectedSite === 'kithara') setLyricsBlocked(true);
+      // Fetched page source has encrypted lyrics — warn only if we got none
+      if (detectedSite === 'kithara') setLyricsBlocked(!parsed.lyrics || parsed.lyrics.length < 40);
       setStep('preview');
     } catch (e) {
       setError('Failed to fetch: ' + (e as Error).message);
@@ -732,6 +765,13 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
                 >
                   {loading ? 'Fetching…' : 'Fetch Song →'}
                 </button>
+
+                <button
+                  onClick={() => { setError(''); setStep('paste-html'); }}
+                  style={{ padding: '10px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.85rem', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border)', background: 'transparent', color: 'var(--cream-muted)', transition: 'all 0.2s' }}
+                >
+                  Paste page instead (bookmarklet) →
+                </button>
               </div>
             )}
 
@@ -739,12 +779,24 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
             {step === 'paste-html' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ padding: '14px 16px', border: '1px solid rgba(0,196,180,0.35)', background: 'rgba(0,196,180,0.07)', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--cream-soft)' }}>
-                  <strong style={{ color: 'var(--gold)' }}>{siteName} requires manual import.</strong><br />
-                  To import:<br />
-                  1. Open the song page in your browser<br />
-                  2. Press <strong>Ctrl+U</strong> (or right-click → View Page Source)<br />
-                  3. Press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> to copy all<br />
-                  4. Paste it below and click Parse
+                  <strong style={{ color: 'var(--gold)' }}>{siteName} blocks automatic fetching — grab the page with one tap instead.</strong><br /><br />
+                  <strong style={{ color: 'var(--gold-dim)' }}>One-time setup:</strong> create a new bookmark in your browser, name it &ldquo;→ Songcord&rdquo;, and paste the copied code as its URL/address.
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(BOOKMARKLET).then(() => {
+                        setBmCopied(true);
+                        setTimeout(() => setBmCopied(false), 2500);
+                      });
+                    }}
+                    style={{ display: 'block', margin: '10px 0', padding: '8px 16px', background: bmCopied ? 'rgba(0,196,180,0.2)' : 'transparent', border: '1px solid var(--gold-border-mid)', color: 'var(--gold-bright)', cursor: 'pointer', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.85rem', letterSpacing: '0.15em', textTransform: 'uppercase' }}
+                  >
+                    {bmCopied ? '✓ Copied' : 'Copy bookmarklet code'}
+                  </button>
+                  <strong style={{ color: 'var(--gold-dim)' }}>Then every time:</strong><br />
+                  1. Open the song page → tap the &ldquo;→ Songcord&rdquo; bookmark<br />
+                  2. Come back here → paste below → Parse
+                  <br /><br />
+                  <em style={{ color: 'var(--gold-dim)' }}>No bookmark? On desktop you can also press <strong>Ctrl+U</strong> on the song page, then Ctrl+A, Ctrl+C, and paste below.</em>
                   {site === 'ug' && (
                     <><br /><br /><em style={{ color: 'var(--gold-dim)' }}>Tip: make sure you are on a &ldquo;Chords&rdquo; tab page, not a Guitar Pro or Tab page.</em></>
                   )}
@@ -770,7 +822,9 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
                     onClick={() => {
                       if (!pastedHtml.trim()) { setError('Please paste the page source first.'); return; }
                       try {
-                        const detectedSite = detectSite(url);
+                        let detectedSite = detectSite(url);
+                        if (detectedSite === 'unknown') detectedSite = sniffSiteFromHtml(pastedHtml);
+                        setSite(detectedSite);
                         let parsed: Omit<ParsedSong, 'lyricsBlocked' | 'siteBlocked'>;
                         if (detectedSite === 'tabsy')        parsed = parseTabsyHtml(pastedHtml);
                         else if (detectedSite === 'ug')      parsed = parseUGHtml(pastedHtml);
@@ -778,7 +832,8 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
                         else                                 parsed = parseKitharaHtml(pastedHtml);
                         if (!parsed.title && !parsed.artist) { setError('Could not parse the HTML. Make sure you copied the full page source.'); return; }
                         applyParsed(parsed);
-                        if (detectedSite === 'kithara') setLyricsBlocked(true);
+                        // Bookmarklet paste contains decrypted lyrics — warn only if none found
+                        if (detectedSite === 'kithara') setLyricsBlocked(!parsed.lyrics || parsed.lyrics.length < 40);
                         setError('');
                         setStep('preview');
                       } catch (e) {
