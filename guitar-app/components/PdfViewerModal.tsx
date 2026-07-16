@@ -135,6 +135,20 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
     [pageCount],
   );
 
+  // Direct page jump — the page indicator doubles as an input.
+  const [pageInput, setPageInput] = useState('1');
+  useEffect(() => { setPageInput(String(page)); }, [page]);
+  const commitPageInput = useCallback(() => {
+    const n = parseInt(pageInput, 10);
+    if (!Number.isNaN(n) && pageCount) {
+      const clamped = Math.min(pageCount, Math.max(1, n));
+      setPage(clamped);
+      setPageInput(String(clamped));
+    } else {
+      setPageInput(String(page));
+    }
+  }, [pageInput, pageCount, page]);
+
   // Leaving fit-width on zoom keeps the buttons meaningful — otherwise the
   // computed fit scale would immediately override whatever step you picked.
   const zoomIn = useCallback(() => {
@@ -149,6 +163,11 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      // Don't flip pages / zoom while typing in the page-jump input
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') {
+        if (e.key === 'Escape') onClose();
+        return;
+      }
       if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') goPrev();
       else if (e.key === 'ArrowRight' || e.key === 'PageDown') goNext();
@@ -197,7 +216,26 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
                 <button onClick={goPrev} disabled={page <= 1} aria-label="Previous page">
                   <FiChevronLeft size={18} />
                 </button>
-                <span className="pdf-page">{pageCount ? `${page} / ${pageCount}` : '—'}</span>
+                <span className="pdf-page">
+                  {pageCount ? (
+                    <>
+                      <input
+                        className="pdf-page-input"
+                        type="text"
+                        inputMode="numeric"
+                        value={pageInput}
+                        onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { commitPageInput(); (e.target as HTMLInputElement).blur(); }
+                        }}
+                        onBlur={commitPageInput}
+                        onFocus={(e) => e.target.select()}
+                        aria-label="Go to page"
+                      />
+                      {` / ${pageCount}`}
+                    </>
+                  ) : '—'}
+                </span>
                 <button onClick={goNext} disabled={page >= pageCount} aria-label="Next page">
                   <FiChevronRight size={18} />
                 </button>
@@ -287,6 +325,14 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               font-size: 0.78rem; color: var(--cream); opacity: 0.75;
               min-width: 54px; text-align: center; font-variant-numeric: tabular-nums;
             }
+            .pdf-page-input {
+              width: 3em; padding: 3px 4px; margin-right: 2px;
+              background: rgba(255,255,255,0.06);
+              border: 1px solid var(--gold-border);
+              border-radius: 4px; color: var(--cream);
+              font: inherit; text-align: center; outline: none;
+            }
+            .pdf-page-input:focus { border-color: var(--gold-bright); }
             .pdf-sep {
               width: 1px; height: 20px; margin: 0 6px;
               background: var(--gold-border);
