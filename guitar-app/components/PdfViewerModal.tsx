@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  FiX, FiZoomIn, FiZoomOut, FiChevronLeft, FiChevronRight, FiMaximize,
+  FiX, FiZoomIn, FiZoomOut, FiChevronLeft, FiChevronRight, FiChevronDown, FiMaximize,
 } from 'react-icons/fi';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { MusicBook } from '@/lib/books';
@@ -135,19 +135,27 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
     [pageCount],
   );
 
-  // Direct page jump — the page indicator doubles as an input.
-  const [pageInput, setPageInput] = useState('1');
-  useEffect(() => { setPageInput(String(page)); }, [page]);
-  const commitPageInput = useCallback(() => {
-    const n = parseInt(pageInput, 10);
-    if (!Number.isNaN(n) && pageCount) {
-      const clamped = Math.min(pageCount, Math.max(1, n));
-      setPage(clamped);
-      setPageInput(String(clamped));
-    } else {
-      setPageInput(String(page));
-    }
-  }, [pageInput, pageCount, page]);
+  // Page picker — the page indicator opens a scrollable grid of page numbers.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLSpanElement>(null);
+  const currentCellRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => { if (!open) setPickerOpen(false); }, [open]);
+
+  // Close on click outside the picker
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [pickerOpen]);
+
+  // Bring the current page into view when the picker opens
+  useEffect(() => {
+    if (pickerOpen) currentCellRef.current?.scrollIntoView({ block: 'center' });
+  }, [pickerOpen]);
 
   // Leaving fit-width on zoom keeps the buttons meaningful — otherwise the
   // computed fit scale would immediately override whatever step you picked.
@@ -163,12 +171,11 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      // Don't flip pages / zoom while typing in the page-jump input
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') {
-        if (e.key === 'Escape') onClose();
-        return;
+      if (e.key === 'Escape') {
+        // Escape closes the page picker first, the reader second
+        if (pickerOpen) setPickerOpen(false);
+        else onClose();
       }
-      if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') goPrev();
       else if (e.key === 'ArrowRight' || e.key === 'PageDown') goNext();
       else if (e.key === '+' || e.key === '=') zoomIn();
@@ -176,7 +183,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, goPrev, goNext, zoomIn, zoomOut]);
+  }, [open, onClose, goPrev, goNext, zoomIn, zoomOut, pickerOpen]);
 
   // Freeze background scroll while the overlay owns the viewport.
   useEffect(() => {
@@ -216,25 +223,35 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
                 <button onClick={goPrev} disabled={page <= 1} aria-label="Previous page">
                   <FiChevronLeft size={18} />
                 </button>
-                <span className="pdf-page">
-                  {pageCount ? (
-                    <>
-                      <input
-                        className="pdf-page-input"
-                        type="text"
-                        inputMode="numeric"
-                        value={pageInput}
-                        onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ''))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { commitPageInput(); (e.target as HTMLInputElement).blur(); }
-                        }}
-                        onBlur={commitPageInput}
-                        onFocus={(e) => e.target.select()}
-                        aria-label="Go to page"
-                      />
-                      {` / ${pageCount}`}
-                    </>
-                  ) : '—'}
+                <span className="pdf-page-wrap" ref={pickerRef}>
+                  <button
+                    className={`pdf-page-btn${pickerOpen ? ' active' : ''}`}
+                    onClick={() => setPickerOpen((o) => !o)}
+                    disabled={!pageCount}
+                    aria-label="Go to page"
+                    aria-expanded={pickerOpen}
+                  >
+                    <span className="pdf-page">{pageCount ? `${page} / ${pageCount}` : '—'}</span>
+                    <FiChevronDown size={12} style={{ transition: 'transform 0.15s', transform: pickerOpen ? 'rotate(180deg)' : 'none' }} />
+                  </button>
+
+                  {pickerOpen && pageCount > 0 && (
+                    <div className="pdf-page-picker" data-lenis-prevent>
+                      <div className="pdf-page-picker-label">Jump to page</div>
+                      <div className="pdf-page-grid">
+                        {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                          <button
+                            key={n}
+                            ref={n === page ? currentCellRef : undefined}
+                            className={`pdf-page-cell${n === page ? ' current' : ''}`}
+                            onClick={() => { setPage(n); setPickerOpen(false); }}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </span>
                 <button onClick={goNext} disabled={page >= pageCount} aria-label="Next page">
                   <FiChevronRight size={18} />
@@ -325,14 +342,46 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               font-size: 0.78rem; color: var(--cream); opacity: 0.75;
               min-width: 54px; text-align: center; font-variant-numeric: tabular-nums;
             }
-            .pdf-page-input {
-              width: 3em; padding: 3px 4px; margin-right: 2px;
-              background: rgba(255,255,255,0.06);
-              border: 1px solid var(--gold-border);
-              border-radius: 4px; color: var(--cream);
-              font: inherit; text-align: center; outline: none;
+            .pdf-page-wrap { position: relative; display: inline-flex; }
+            .pdf-controls .pdf-page-btn {
+              width: auto; height: 32px; padding: 0 8px; gap: 5px;
+              border: 1px solid transparent;
             }
-            .pdf-page-input:focus { border-color: var(--gold-bright); }
+            .pdf-controls .pdf-page-btn .pdf-page { min-width: 0; }
+            .pdf-page-picker {
+              position: absolute; top: calc(100% + 10px); left: 50%;
+              transform: translateX(-50%);
+              width: min(276px, calc(100vw - 24px));
+              max-height: min(320px, 55vh);
+              overflow-y: auto; overscroll-behavior: contain;
+              background: var(--bg-surface);
+              border: 1px solid var(--gold-border);
+              border-radius: 10px; padding: 10px;
+              box-shadow: 0 18px 48px rgba(0,0,0,0.65);
+              z-index: 30;
+            }
+            .pdf-page-picker-label {
+              font-size: 0.6rem; letter-spacing: 0.3em; text-transform: uppercase;
+              color: var(--cream); opacity: 0.45; text-align: center;
+              padding: 2px 0 10px;
+            }
+            .pdf-page-grid {
+              display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+            }
+            .pdf-controls .pdf-page-cell {
+              width: auto; height: 34px; border-radius: 6px;
+              font-size: 0.75rem; font-variant-numeric: tabular-nums;
+              color: var(--cream); opacity: 0.8;
+            }
+            .pdf-controls .pdf-page-cell:hover {
+              opacity: 1; background: rgba(0,196,180,0.12);
+              border-color: var(--gold-border);
+            }
+            .pdf-controls .pdf-page-cell.current {
+              opacity: 1; color: var(--gold-bright);
+              background: rgba(0,196,180,0.16);
+              border-color: var(--gold-border);
+            }
             .pdf-sep {
               width: 1px; height: 20px; margin: 0 6px;
               background: var(--gold-border);
