@@ -26,9 +26,18 @@ async function getPdfjs() {
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 const DEFAULT_ZOOM_INDEX = 2; // 1.0
 
+// OCR of Greek capitals often lands on the identical-looking Latin letter
+// (ΡΙΤΑ → "PITA"). Folding Latin homoglyphs to Greek on BOTH query and text
+// keeps same-script matches intact while bridging the two scripts.
+const HOMOGLYPHS: Record<string, string> = {
+  a: 'α', b: 'β', e: 'ε', z: 'ζ', h: 'η', i: 'ι', k: 'κ',
+  m: 'μ', n: 'ν', o: 'ο', p: 'ρ', t: 'τ', y: 'υ', x: 'χ',
+};
+
 // Accent/case-insensitive matching so ΡΙΤΑ finds Ρίτα (also folds final sigma)
 function foldText(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ')
+    .replace(/[abezhikmnoptyx]/g, (c) => HOMOGLYPHS[c]);
 }
 
 interface Props {
