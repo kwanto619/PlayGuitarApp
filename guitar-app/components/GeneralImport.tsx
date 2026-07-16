@@ -535,12 +535,13 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
     language: 'greek' as 'greek' | 'english',
   });
 
-  // Lock page scroll while the modal is open so wheel/touch scrolls the modal, not the page
+  // Lock page scroll while the modal is open. The scroll-locked class also
+  // hides the html scrollbar that Lenis drives on desktop (see globals.css);
+  // data-lenis-prevent on the modal keeps Lenis from hijacking the wheel.
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    document.body.classList.add('scroll-locked');
+    return () => { document.body.classList.remove('scroll-locked'); };
   }, [open]);
 
   const reset = () => {
@@ -706,6 +707,7 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
       {open && (
         <div
           onClick={reset}
+          data-lenis-prevent
           style={{
             position: 'fixed', inset: 0,
             background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
@@ -715,6 +717,7 @@ export default function GeneralImport({ onImported, inline = false }: { onImport
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            data-lenis-prevent
             style={{
               position: 'relative', background: 'var(--bg-surface)',
               border: '1px solid var(--gold-border-mid)',
