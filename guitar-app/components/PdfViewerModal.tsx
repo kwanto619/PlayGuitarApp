@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  FiX, FiZoomIn, FiZoomOut, FiChevronLeft, FiChevronRight, FiChevronDown, FiMaximize,
+  FiX, FiZoomIn, FiZoomOut, FiChevronLeft, FiChevronRight, FiChevronDown, FiMaximize, FiSearch,
 } from 'react-icons/fi';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { MusicBook } from '@/lib/books';
@@ -25,6 +25,11 @@ async function getPdfjs() {
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 const DEFAULT_ZOOM_INDEX = 2; // 1.0
+
+// Accent/case-insensitive matching so ΡΙΤΑ finds Ρίτα (also folds final sigma)
+function foldText(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
+}
 
 interface Props {
   book: MusicBook | null;
@@ -157,6 +162,76 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
     if (pickerOpen) currentCellRef.current?.scrollIntoView({ block: 'center' });
   }, [pickerOpen]);
 
+  // ── In-book text search (Ctrl+F) ───────────────────────────────────────
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [indexProgress, setIndexProgress] = useState(0);
+  const [results, setResults] = useState<{ page: number; snippet: string; hits: number }[] | null>(null);
+  const [noTextLayer, setNoTextLayer] = useState(false);
+  // Page texts are extracted once per document and reused across searches.
+  const textCacheRef = useRef<string[] | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset search state when a different book is opened
+  useEffect(() => {
+    textCacheRef.current = null;
+    setSearchOpen(false); setQuery(''); setResults(null);
+    setNoTextLayer(false); setIndexProgress(0);
+  }, [doc]);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const runSearch = useCallback(async () => {
+    const q = foldText(query.trim());
+    if (!q || !doc) return;
+    setSearching(true);
+    setResults(null);
+    setNoTextLayer(false);
+    try {
+      let cache = textCacheRef.current;
+      if (!cache) {
+        cache = [];
+        for (let i = 1; i <= doc.numPages; i++) {
+          const p = await doc.getPage(i);
+          const tc = await p.getTextContent();
+          cache.push(tc.items.map((it) => ('str' in it ? it.str : '')).join(' '));
+          if (i % 5 === 0 || i === doc.numPages) setIndexProgress(i);
+        }
+        textCacheRef.current = cache;
+      }
+
+      if (!cache.join('').trim()) {
+        // Scanned book with no OCR layer — there is nothing to search
+        setNoTextLayer(true);
+        setResults([]);
+        return;
+      }
+
+      const found: { page: number; snippet: string; hits: number }[] = [];
+      cache.forEach((raw, idx) => {
+        const folded = foldText(raw);
+        const at = folded.indexOf(q);
+        if (at === -1) return;
+        let hits = 0;
+        for (let pos = at; pos !== -1; pos = folded.indexOf(q, pos + q.length)) hits++;
+        // Approximate the raw position (folding may shift indices slightly)
+        const start = Math.max(0, at - 30);
+        const snippet = (start > 0 ? '…' : '') +
+          raw.slice(start, at + q.length + 45).replace(/\s+/g, ' ').trim() +
+          (at + q.length + 45 < raw.length ? '…' : '');
+        found.push({ page: idx + 1, snippet, hits });
+      });
+      setResults(found);
+    } catch {
+      // Document was closed mid-extraction — drop silently
+    } finally {
+      setSearching(false);
+    }
+  }, [query, doc]);
+
   // Leaving fit-width on zoom keeps the buttons meaningful — otherwise the
   // computed fit scale would immediately override whatever step you picked.
   const zoomIn = useCallback(() => {
@@ -172,18 +247,27 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Escape closes the page picker first, the reader second
-        if (pickerOpen) setPickerOpen(false);
+        // Escape closes search, then the page picker, then the reader
+        if (searchOpen) setSearchOpen(false);
+        else if (pickerOpen) setPickerOpen(false);
         else onClose();
+        return;
       }
-      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') goPrev();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+      // Don't flip pages / zoom while typing in the search box
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') goPrev();
       else if (e.key === 'ArrowRight' || e.key === 'PageDown') goNext();
       else if (e.key === '+' || e.key === '=') zoomIn();
       else if (e.key === '-') zoomOut();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, goPrev, goNext, zoomIn, zoomOut, pickerOpen]);
+  }, [open, onClose, goPrev, goNext, zoomIn, zoomOut, pickerOpen, searchOpen]);
 
   // Freeze background scroll while the overlay owns the viewport.
   useEffect(() => {
@@ -256,6 +340,75 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
                 <button onClick={goNext} disabled={page >= pageCount} aria-label="Next page">
                   <FiChevronRight size={18} />
                 </button>
+
+                <div className="pdf-sep" />
+
+                <span className="pdf-search-wrap">
+                  <button
+                    onClick={() => setSearchOpen((o) => !o)}
+                    className={searchOpen ? 'active' : ''}
+                    aria-label="Search in book (Ctrl+F)"
+                    aria-expanded={searchOpen}
+                  >
+                    <FiSearch size={16} />
+                  </button>
+
+                  {searchOpen && (
+                    <div className="pdf-search-panel" data-lenis-prevent>
+                      <div className="pdf-search-row">
+                        <input
+                          ref={searchInputRef}
+                          className="pdf-search-input"
+                          type="text"
+                          placeholder="Search in book…"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }}
+                          aria-label="Search text"
+                        />
+                        <button onClick={() => void runSearch()} disabled={searching || !query.trim()} aria-label="Run search">
+                          <FiSearch size={15} />
+                        </button>
+                      </div>
+
+                      {searching && (
+                        <p className="pdf-search-status">
+                          {textCacheRef.current ? 'Searching…' : `Reading book… ${indexProgress}/${pageCount}`}
+                        </p>
+                      )}
+
+                      {!searching && noTextLayer && (
+                        <p className="pdf-search-status">
+                          This book has no searchable text — it&apos;s scanned images without an OCR text layer.
+                        </p>
+                      )}
+
+                      {!searching && results !== null && !noTextLayer && (
+                        results.length === 0 ? (
+                          <p className="pdf-search-status">No matches.</p>
+                        ) : (
+                          <>
+                            <p className="pdf-search-status">
+                              {results.reduce((n, r) => n + r.hits, 0)} match{results.reduce((n, r) => n + r.hits, 0) === 1 ? '' : 'es'} on {results.length} page{results.length === 1 ? '' : 's'}
+                            </p>
+                            <div className="pdf-search-results">
+                              {results.map((r) => (
+                                <button
+                                  key={r.page}
+                                  className={`pdf-search-hit${r.page === page ? ' current' : ''}`}
+                                  onClick={() => setPage(r.page)}
+                                >
+                                  <span className="pdf-search-hit-page">p. {r.page}</span>
+                                  <span className="pdf-search-hit-snippet">{r.snippet}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )
+                      )}
+                    </div>
+                  )}
+                </span>
 
                 <div className="pdf-sep" />
 
@@ -381,6 +534,56 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               opacity: 1; color: var(--gold-bright);
               background: rgba(0,196,180,0.16);
               border-color: var(--gold-border);
+            }
+            .pdf-search-wrap { position: relative; display: inline-flex; }
+            .pdf-search-panel {
+              position: absolute; top: calc(100% + 10px); right: -44px;
+              width: min(340px, calc(100vw - 24px));
+              background: var(--bg-surface);
+              border: 1px solid var(--gold-border);
+              border-radius: 10px; padding: 10px;
+              box-shadow: 0 18px 48px rgba(0,0,0,0.65);
+              z-index: 30;
+            }
+            .pdf-search-row { display: flex; gap: 6px; }
+            .pdf-search-input {
+              flex: 1; min-width: 0; padding: 7px 10px;
+              background: rgba(255,255,255,0.06);
+              border: 1px solid var(--gold-border);
+              border-radius: 6px; color: var(--cream);
+              font: inherit; font-size: 0.82rem; outline: none;
+            }
+            .pdf-search-input:focus { border-color: var(--gold-bright); }
+            .pdf-search-status {
+              margin: 10px 2px 2px; font-size: 0.72rem;
+              color: var(--cream); opacity: 0.6; line-height: 1.5;
+            }
+            .pdf-search-results {
+              margin-top: 8px; max-height: min(300px, 45vh);
+              overflow-y: auto; overscroll-behavior: contain;
+              display: flex; flex-direction: column; gap: 3px;
+            }
+            .pdf-controls .pdf-search-hit {
+              width: 100%; height: auto; padding: 7px 9px;
+              display: flex; align-items: baseline; gap: 8px;
+              text-align: left; border-radius: 6px;
+            }
+            .pdf-controls .pdf-search-hit.current {
+              background: rgba(0,196,180,0.12);
+              border-color: var(--gold-border);
+            }
+            .pdf-search-hit-page {
+              flex: none; color: var(--gold-bright);
+              font-size: 0.72rem; font-variant-numeric: tabular-nums;
+            }
+            .pdf-search-hit-snippet {
+              font-size: 0.74rem; color: var(--cream); opacity: 0.75;
+              overflow: hidden; display: -webkit-box;
+              -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+              line-height: 1.45;
+            }
+            @media (max-width: 900px) {
+              .pdf-search-panel { right: -88px; }
             }
             .pdf-sep {
               width: 1px; height: 20px; margin: 0 6px;
