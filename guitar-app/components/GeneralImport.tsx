@@ -136,19 +136,39 @@ function parseKitharaHtml(html: string): Omit<ParsedSong, 'lyricsBlocked' | 'sit
   }
 
   let lyrics = '';
-  const textContent = extractDivById(html, 'text');
+  let textContent = extractDivById(html, 'text');
   if (textContent) {
-    lyrics = textContent
-      .replace(/<a[^>]*class=["']clickPlay["'][^>]*>([^<]+)<\/a>/g, '[$1]')
-      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>\s*<a[^>]*>([^<]+)<\/a>\s*<\/span>/g, '[$2]')
-      .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>([^<]+)<\/span>/g, '[$2]')
-      .replace(/<\/?(span|a|em|strong|b|i|u)[^>]*>/g, '')
-      .replace(/<\/p>\s*<p[^>]*>/g, '\n\n').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '\n\n')
-      .replace(/<\/div>\s*<div[^>]*>/g, '\n\n').replace(/<\/?div[^>]*>/g, '\n')
-      .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
-      .replace(/&shy;/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')
-      .split('\n').map((l) => l.trimEnd()).join('\n')
-      .replace(/\n{3,}/g, '\n\n').trim();
+    // Drop script/style blocks — their code would leak into the lyrics
+    textContent = textContent
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+    if (/class=["']chMono["']/.test(textContent)) {
+      // kithara line-per-div layout: .chMono = chord line (plain text),
+      // .ch = the same chords again as clickable links (drop to avoid duplicates),
+      // .te = lyric line, .no = blank spacer line
+      lyrics = decodeEntities(
+        textContent
+          .replace(/<div class=["']ch["'][^>]*>[\s\S]*?<\/div>/g, '')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/div>\s*/g, '\n')
+          .replace(/<[^>]+>/g, '')
+      )
+        .split('\n').map((l) => l.trimEnd()).join('\n')
+        .replace(/\n{3,}/g, '\n\n').trim();
+    } else {
+      lyrics = textContent
+        .replace(/<a[^>]*class=["']clickPlay["'][^>]*>([^<]+)<\/a>/g, '[$1]')
+        .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>\s*<a[^>]*>([^<]+)<\/a>\s*<\/span>/g, '[$2]')
+        .replace(/<span[^>]*class=["'][^"']*\b(ch|chord)\b[^"']*["'][^>]*>([^<]+)<\/span>/g, '[$2]')
+        .replace(/<\/?(span|a|em|strong|b|i|u)[^>]*>/g, '')
+        .replace(/<\/p>\s*<p[^>]*>/g, '\n\n').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '\n\n')
+        .replace(/<\/div>\s*<div[^>]*>/g, '\n\n').replace(/<\/?div[^>]*>/g, '\n')
+        .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+        .replace(/&shy;/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')
+        .split('\n').map((l) => l.trimEnd()).join('\n')
+        .replace(/\n{3,}/g, '\n\n').trim();
+    }
   }
 
   return { title, artist, chords: [...chordSet], language, lyrics, lyricsSnippet: '' };
