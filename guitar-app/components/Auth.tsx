@@ -29,22 +29,32 @@ const labelStyle: React.CSSProperties = {
 // Pre-email accounts were registered as <username>@guitar-app.local
 const LEGACY_EMAIL_DOMAIN = 'guitar-app.local';
 
+type Mode = 'signin' | 'signup' | 'forgot';
+
+const TITLES: Record<Mode, string> = {
+  signin: 'Sign In',
+  signup: 'Create Account',
+  forgot: 'Reset Password',
+};
+
 export default function Auth() {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>('signin');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
+
+  const switchMode = (m: Mode) => { setMode(m); setMessage(''); setIsError(false); };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setMessage(''); setIsError(false);
     try {
-      if (isSignUp) {
+      if (mode === 'signup') {
         const uname = username.trim().toLowerCase();
         if (!/^[a-z0-9_-]{3,24}$/.test(uname)) {
           throw new Error('Username must be 3–24 chars: letters, numbers, _ or -');
@@ -78,8 +88,23 @@ export default function Auth() {
           router.push('/');
           return;
         }
-        setIsSignUp(false);
+        setMode('signin');
         setMessage('Check your email — click the confirmation link, then sign in.');
+        setIsError(false);
+        return;
+      }
+
+      if (mode === 'forgot') {
+        const mail = email.trim().toLowerCase();
+        if (!mail.includes('@') || mail.endsWith(`@${LEGACY_EMAIL_DOMAIN}`)) {
+          throw new Error('Enter the email address of your account.');
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(mail, {
+          redirectTo: `${window.location.origin}/auth/reset`,
+        });
+        if (error) throw error;
+        setMode('signin');
+        setMessage('If that email has an account, a reset link is on its way.');
         setIsError(false);
         return;
       }
@@ -133,12 +158,12 @@ export default function Auth() {
             fontSize: '2rem', fontWeight: 500, letterSpacing: '0.08em',
             color: 'var(--gold-bright)', margin: 0,
           }}>
-            {isSignUp ? 'Create Account' : 'Sign In'}
+            {TITLES[mode]}
           </h1>
         </div>
 
         <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {isSignUp ? (
+          {mode === 'signup' && (
             <>
               <div>
                 <label style={labelStyle}>Username</label>
@@ -156,7 +181,9 @@ export default function Auth() {
                 />
               </div>
             </>
-          ) : (
+          )}
+
+          {mode === 'signin' && (
             <div>
               <label style={labelStyle}>Email or Username</label>
               <input
@@ -166,13 +193,43 @@ export default function Auth() {
             </div>
           )}
 
-          <div>
-            <label style={labelStyle}>Password</label>
-            <input
-              type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              required minLength={6} placeholder="••••••" style={inputStyle}
-            />
-          </div>
+          {mode === 'forgot' && (
+            <div>
+              <label style={labelStyle}>Email</label>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                autoFocus required placeholder="you@example.com" style={inputStyle}
+              />
+              <p style={{ margin: '8px 0 0', fontSize: '0.82rem', color: 'var(--cream-muted)' }}>
+                We&apos;ll email you a link to set a new password.
+              </p>
+            </div>
+          )}
+
+          {mode !== 'forgot' && (
+            <div>
+              <label style={labelStyle}>Password</label>
+              <input
+                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                required minLength={6} placeholder="••••••" style={inputStyle}
+              />
+              {mode === 'signin' && (
+                <button
+                  type="button"
+                  onClick={() => switchMode('forgot')}
+                  style={{
+                    marginTop: '8px', padding: 0,
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    color: 'var(--cream-muted)', fontSize: '0.82rem',
+                    fontFamily: 'var(--font-cormorant, Georgia, serif)',
+                    letterSpacing: '0.06em', textDecoration: 'underline',
+                  }}
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+          )}
 
           {message && (
             <div style={{
@@ -199,12 +256,15 @@ export default function Auth() {
               opacity: loading ? 0.6 : 1, transition: 'all 0.2s',
             }}
           >
-            {loading ? 'Loading…' : isSignUp ? 'Create Account' : 'Sign In'}
+            {loading ? 'Loading…'
+              : mode === 'signup' ? 'Create Account'
+              : mode === 'forgot' ? 'Send Reset Link'
+              : 'Sign In'}
           </button>
         </form>
 
         <button
-          onClick={() => { setIsSignUp(!isSignUp); setMessage(''); setIsError(false); }}
+          onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')}
           style={{
             width: '100%', marginTop: '20px',
             background: 'transparent', border: 'none', cursor: 'pointer',
@@ -213,7 +273,7 @@ export default function Auth() {
             fontSize: '0.88rem', letterSpacing: '0.1em',
           }}
         >
-          {isSignUp ? 'Have an account? Sign in' : "No account? Create one"}
+          {mode === 'signin' ? "No account? Create one" : 'Have an account? Sign in'}
         </button>
       </div>
     </div>
