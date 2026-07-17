@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import CreateAccountBanner from '@/components/CreateAccountBanner';
 
 const AUTH_REQUIRED = new Set(['/playlists', '/favorites', '/feed']);
 
@@ -431,6 +432,9 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* ── Signed-out call-to-action ── */}
+      <CreateAccountBanner />
 
       {/* ── Grid ── */}
       <div style={{

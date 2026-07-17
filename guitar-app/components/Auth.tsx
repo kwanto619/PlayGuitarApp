@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
@@ -47,6 +47,14 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
+
+  // Allow deep-linking straight into signup (/auth?mode=signup). Read after
+  // mount to keep the statically prerendered page hydration-safe.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('mode') === 'signup') {
+      setMode('signup');
+    }
+  }, []);
 
   const switchMode = (m: Mode) => { setMode(m); setMessage(''); setIsError(false); };
 
