@@ -26,9 +26,14 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '6px',
 };
 
+// Pre-email accounts were registered as <username>@guitar-app.local
+const LEGACY_EMAIL_DOMAIN = 'guitar-app.local';
+
 export default function Auth() {
   const router = useRouter();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,25 +43,56 @@ export default function Auth() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setMessage(''); setIsError(false);
-    const uname = username.trim().toLowerCase();
-    if (!/^[a-z0-9_-]{3,24}$/.test(uname)) {
-      setMessage('Username must be 3–24 chars: letters, numbers, _ or -');
-      setIsError(true); setLoading(false); return;
-    }
-    const email = `${uname}@guitar-app.local`;
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { username: uname } },
+        const uname = username.trim().toLowerCase();
+        if (!/^[a-z0-9_-]{3,24}$/.test(uname)) {
+          throw new Error('Username must be 3–24 chars: letters, numbers, _ or -');
+        }
+        const mail = email.trim().toLowerCase();
+        const { data: taken } = await supabase
+          .from('profiles').select('id').eq('username', uname).maybeSingle();
+        if (taken) throw new Error('Username already taken.');
+
+        const { data, error } = await supabase.auth.signUp({
+          email: mail,
+          password,
+          options: {
+            data: { username: uname },
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          },
         });
         if (error) {
-          if (error.message.toLowerCase().includes('registered')) throw new Error('Username already taken.');
+          if (error.message.toLowerCase().includes('registered')) {
+            throw new Error('This email is already registered. Sign in instead.');
+          }
           throw error;
         }
+        // With email confirmation on, Supabase masks duplicate emails as a
+        // success with an identity-less user.
+        if (data.user && data.user.identities?.length === 0) {
+          throw new Error('This email is already registered. Sign in instead.');
+        }
+        if (data.session) {
+          // Email confirmation disabled in Supabase — signed in immediately.
+          router.push('/');
+          return;
+        }
+        setIsSignUp(false);
+        setMessage('Check your email — click the confirmation link, then sign in.');
+        setIsError(false);
+        return;
       }
-      const { error: sErr } = await supabase.auth.signInWithPassword({ email, password });
-      if (sErr) throw new Error('Invalid username or password');
+
+      const id = loginId.trim().toLowerCase();
+      const mail = id.includes('@') ? id : `${id}@${LEGACY_EMAIL_DOMAIN}`;
+      const { error: sErr } = await supabase.auth.signInWithPassword({ email: mail, password });
+      if (sErr) {
+        if (sErr.message.toLowerCase().includes('confirmed')) {
+          throw new Error('Email not confirmed yet — check your inbox for the link.');
+        }
+        throw new Error('Invalid email/username or password');
+      }
       router.push('/');
     } catch (err) {
       setMessage((err as Error).message);
@@ -102,14 +138,33 @@ export default function Auth() {
         </div>
 
         <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div>
-            <label style={labelStyle}>Username</label>
-            <input
-              type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-              autoFocus required minLength={3} pattern="[a-zA-Z0-9_-]+"
-              placeholder="your-username" style={inputStyle}
-            />
-          </div>
+          {isSignUp ? (
+            <>
+              <div>
+                <label style={labelStyle}>Username</label>
+                <input
+                  type="text" value={username} onChange={(e) => setUsername(e.target.value)}
+                  autoFocus required minLength={3} pattern="[a-zA-Z0-9_-]+"
+                  placeholder="your-username" style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Email</label>
+                <input
+                  type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  required placeholder="you@example.com" style={inputStyle}
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label style={labelStyle}>Email or Username</label>
+              <input
+                type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)}
+                autoFocus required placeholder="you@example.com" style={inputStyle}
+              />
+            </div>
+          )}
 
           <div>
             <label style={labelStyle}>Password</label>
