@@ -282,7 +282,7 @@ export default function Metronome({ initialBpm = 120, onBpmChange }: MetronomePr
             border: `3px solid ${isPlaying ? 'var(--red-tuning)' : 'var(--gold-bright)'}`,
             background: isPlaying
               ? 'linear-gradient(135deg, rgba(224,72,72,0.35), rgba(224,72,72,0.15))'
-              : 'linear-gradient(135deg, rgba(0,232,213,0.4), rgba(0,130,120,0.25))',
+              : 'linear-gradient(135deg, rgba(0,232,213,0.4), rgba(13,148,136,0.125))',
             color: isPlaying ? 'var(--red-tuning)' : 'var(--gold-bright)',
             boxShadow: isPlaying
               ? '0 0 40px rgba(224,72,72,0.4), inset 0 0 20px rgba(224,72,72,0.15)'

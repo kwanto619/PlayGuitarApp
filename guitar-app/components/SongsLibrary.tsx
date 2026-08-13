@@ -99,7 +99,7 @@ function PrimaryBtn({ onClick, children, danger = false }: { onClick: () => void
         border: danger ? '1px solid rgba(224,72,72,0.45)' : '1px solid var(--gold-border-mid)',
         background: danger
           ? 'linear-gradient(135deg, rgba(224,72,72,0.12), rgba(224,72,72,0.06))'
-          : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+          : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
         color: danger ? 'var(--red-tuning)' : 'var(--gold-bright)',
         transition: 'all 0.18s', whiteSpace: 'nowrap' as const,
       }}
@@ -255,7 +255,7 @@ export default function SongsLibrary() {
               letterSpacing: '0.16em', textTransform: 'uppercase',
               cursor: 'pointer', whiteSpace: 'nowrap',
               border: '1px solid var(--gold-border-mid)',
-              background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+              background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
               color: 'var(--gold-bright)', transition: 'all 0.18s',
             }}
           >
@@ -341,7 +341,7 @@ export default function SongsLibrary() {
           marginBottom: '36px',
           maxWidth: '760px',
           margin: '0 auto 36px',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+          boxShadow: '0 8px 40px rgba(23,58,54,0.06)',
         }}>
           {corners.map((s, i) => <div key={i} style={{ position: 'absolute', width: 20, height: 20, ...s }} />)}
 
@@ -443,9 +443,11 @@ export default function SongsLibrary() {
                 const params = new URLSearchParams();
                 params.set('fromPage', String(safePage));
                 if (languageFilter !== 'all') params.set('fromLang', languageFilter);
+                if (sort !== 'newest') params.set('fromSort', sort);
                 if (search.trim()) params.set('fromQ', search.trim());
                 router.push(`/songs/${song.id}?${params.toString()}`);
               }}
+              onArtistClick={() => router.push(`/artists/${encodeURIComponent(song.artist)}`)}
               onDelete={() => handleDeleteSong(song.id)}
               onRate={(r) => handleRating(song.id, r)}
             />
@@ -539,7 +541,10 @@ function StarRating({ value, onChange }: { value?: number; onChange: (r: number)
   );
 }
 
-function SongCard({ song, onClick, onDelete, onRate }: { song: Song; onClick: () => void; onDelete: () => void; onRate: (r: number) => void }) {
+export function SongCard({ song, onClick, onDelete, onRate, onArtistClick }: {
+  song: Song; onClick: () => void;
+  onDelete?: () => void; onRate?: (r: number) => void; onArtistClick?: () => void;
+}) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -553,12 +558,12 @@ function SongCard({ song, onClick, onDelete, onRate }: { song: Song; onClick: ()
         padding: '20px', cursor: 'pointer',
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-2px)' : 'none',
-        boxShadow: hovered ? '0 8px 28px rgba(0,0,0,0.55)' : '0 3px 12px rgba(0,0,0,0.35)',
+        boxShadow: hovered ? '0 8px 28px rgba(23,58,54,0.055)' : '0 3px 12px rgba(23,58,54,0.035)',
         position: 'relative',
       }}
     >
       {/* Delete */}
-      <button
+      {onDelete && <button
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         style={{
           position: 'absolute', top: '8px', right: '8px',
@@ -573,7 +578,7 @@ function SongCard({ song, onClick, onDelete, onRate }: { song: Song; onClick: ()
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--cream-muted)'; e.currentTarget.style.borderColor = 'transparent'; }}
       >
         ✕
-      </button>
+      </button>}
 
       <h4 style={{
         fontFamily: 'var(--font-cormorant, Georgia, serif)',
@@ -589,12 +594,22 @@ function SongCard({ song, onClick, onDelete, onRate }: { song: Song; onClick: ()
         fontSize: '1rem', fontStyle: 'italic',
         color: 'var(--cream-muted)', margin: '0 0 10px',
       }}>
-        {song.artist}
+        {onArtistClick ? (
+          <span
+            onClick={(e) => { e.stopPropagation(); onArtistClick(); }}
+            title={`See all songs by ${song.artist}`}
+            style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--gold-border-mid)', textUnderlineOffset: '3px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold-bright)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = ''; }}
+          >
+            {song.artist}
+          </span>
+        ) : song.artist}
       </p>
 
-      <div style={{ marginBottom: '12px' }}>
+      {onRate && <div style={{ marginBottom: '12px' }}>
         <StarRating value={song.rating} onChange={onRate} />
-      </div>
+      </div>}
 
       {song.chords.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: song.notes ? '10px' : 0 }}>

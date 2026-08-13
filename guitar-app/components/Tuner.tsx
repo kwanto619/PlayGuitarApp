@@ -369,7 +369,7 @@ export default function Tuner() {
                 background: isPlaying
                   ? 'rgba(0,232,213,0.25)'
                   : isTarget
-                    ? 'rgba(0,130,120,0.2)'
+                    ? 'rgba(13,148,136,0.12)'
                     : isDetected && stringStatus === 'tuned'
                       ? 'rgba(80,232,128,0.08)'
                       : 'transparent',
@@ -460,7 +460,7 @@ export default function Tuner() {
           border: isListening ? '1px solid rgba(224,72,72,0.55)' : '1px solid var(--gold-border-mid)',
           background: isListening
             ? 'linear-gradient(135deg, rgba(224,72,72,0.12), rgba(224,72,72,0.06))'
-            : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+            : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
           color: isListening ? 'var(--red-tuning)' : 'var(--gold-bright)',
           transition: 'all 0.2s',
         }}

@@ -2,31 +2,32 @@
 @import "flag-icons/css/flag-icons.min.css";
 
 :root {
-  /* Backgrounds — pure blacks */
-  --bg-deep:         #000000;
-  --bg-base:         #060606;
-  --bg-surface:      #0d0d0d;
-  --bg-card:         #111111;
-  --bg-input:        #080808;
+  /* Backgrounds — bright, airy, teal-tinted */
+  --bg-deep:         #f2f7f6;
+  --bg-base:         #eaf2f1;
+  --bg-surface:      #ffffff;
+  --bg-card:         #ffffff;
+  --bg-input:        #ffffff;
 
-  /* Teal accent (reuses --gold names so all components update automatically) */
-  --gold:            #00c4b4;
-  --gold-bright:     #00e8d5;
-  --gold-dim:        #1f9c91;
-  --gold-border:     #0a2420;
-  --gold-border-mid: #0f3530;
+  /* Teal accent (reuses --gold names so all components update automatically).
+     On a light theme "bright" = deeper/more saturated for contrast. */
+  --gold:            #0d9488;
+  --gold-bright:     #0f766e;
+  --gold-dim:        #5f958f;
+  --gold-border:     #d8e7e5;
+  --gold-border-mid: #aed2cc;
 
-  /* Text — white scale */
-  --cream:           #f0f0f0;
-  --cream-soft:      #c8c8c8;
-  --cream-muted:     #8a8a8a;
+  /* Text — dark slate scale (names kept for compatibility) */
+  --cream:           #17282b;
+  --cream-soft:      #33484c;
+  --cream-muted:     #64797c;
 
   /* Utility */
-  --phosphor:        #00e8d5;
-  --red-tuning:      #ff4d4d;
-  --blue-tuning:     #4488cc;
+  --phosphor:        #0d9488;
+  --red-tuning:      #d64545;
+  --blue-tuning:     #2f6ea8;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* Lenis owns smooth scroll on >= 768px; keep native smooth for mobile only */
@@ -51,7 +52,7 @@ html.lenis, html.lenis body { height: auto; }
   background-size: cover;
   background-position: center;
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 1px rgba(23,58,54,0.2);
 }
 
 /* Chord chip: prevent layout shift when transposing (longer labels like C#m, G#m7 etc) */
@@ -90,7 +91,7 @@ body {
 }
 a { color: inherit; text-decoration: inherit; }
 
-/* Teal ambient glow from top */
+/* Soft teal ambient wash from top — no dark vignette on the light theme */
 body::before {
   content: '';
   position: fixed;
@@ -98,8 +99,7 @@ body::before {
   pointer-events: none;
   z-index: 9997;
   background:
-    radial-gradient(ellipse 70% 45% at 50% -5%, rgba(0, 196, 180, 0.07) 0%, transparent 65%),
-    radial-gradient(ellipse 130% 80% at 50% -5%, transparent 50%, rgba(0, 0, 0, 0.5) 100%);
+    radial-gradient(ellipse 70% 45% at 50% -5%, rgba(13, 148, 136, 0.06) 0%, transparent 65%);
 }
 
 /* Subtle dot-grid overlay */
@@ -109,8 +109,8 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 9998;
-  opacity: 0.022;
-  background-image: radial-gradient(circle, #00c4b4 1px, transparent 1px);
+  opacity: 0.04;
+  background-image: radial-gradient(circle, #0d9488 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -125,8 +125,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes phosphorPulse {
-  0%, 100% { text-shadow: 0 0 20px rgba(0, 232, 213, 0.7), 0 0 60px rgba(0, 196, 180, 0.3); }
-  50%       { text-shadow: 0 0 12px rgba(0, 232, 213, 0.4), 0 0 30px rgba(0, 196, 180, 0.15); }
+  0%, 100% { text-shadow: 0 0 20px rgba(13, 148, 136, 0.35), 0 0 60px rgba(13, 148, 136, 0.15); }
+  50%       { text-shadow: 0 0 12px rgba(13, 148, 136, 0.2),  0 0 30px rgba(13, 148, 136, 0.08); }
 }
 
 @keyframes fadeSlideUp {
@@ -135,8 +135,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes tealGlow {
-  0%, 100% { box-shadow: 0 0 24px rgba(0, 196, 180, 0.18); }
-  50%       { box-shadow: 0 0 48px rgba(0, 196, 180, 0.35); }
+  0%, 100% { box-shadow: 0 0 24px rgba(13, 148, 136, 0.12); }
+  50%       { box-shadow: 0 0 48px rgba(13, 148, 136, 0.22); }
 }
 
 .phosphor-pulse {
@@ -150,6 +150,12 @@ h1, h2, h3, h4, h5, h6 {
 /* Remove 300ms tap delay */
 button, a, [role="button"], input, textarea, select, label {
   touch-action: manipulation;
+}
+
+/* Light-theme polish: soften all controls with a gentle radius.
+   Inline styles that need other shapes (e.g. border-radius: 50%) still win. */
+button, input, textarea, select {
+  border-radius: 8px;
 }
 
 /* Song detail: responsive two-column layout */

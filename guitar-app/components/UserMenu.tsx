@@ -51,7 +51,7 @@ export default function UserMenu() {
         fontFamily: 'var(--font-cormorant, Georgia, serif)',
         fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase',
         border: '1px solid var(--gold-border-mid)',
-        background: 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+        background: 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
         color: 'var(--gold-bright)', textDecoration: 'none',
       }}>
         <UserIcon />
@@ -98,7 +98,7 @@ export default function UserMenu() {
           border: '1px solid var(--gold-border-mid)',
           background: avatarUrl
             ? `center/cover no-repeat url(${avatarUrl})`
-            : 'linear-gradient(135deg, rgba(0,130,120,0.45), rgba(0,90,83,0.25))',
+            : 'linear-gradient(135deg, rgba(13,148,136,0.145), rgba(13,148,136,0.025))',
           color: 'var(--gold-bright)',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           overflow: 'hidden', flex: '0 0 auto',

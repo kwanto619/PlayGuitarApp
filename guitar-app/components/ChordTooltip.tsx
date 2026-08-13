@@ -112,7 +112,7 @@ export default function ChordTooltip({ name, children }: ChordTooltipProps) {
             background: 'var(--bg-surface)',
             border: '1px solid var(--gold-border-mid)',
             padding: '12px 14px 10px',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,196,180,0.07)',
+            boxShadow: '0 16px 48px rgba(23,58,54,0.18), 0 0 0 1px rgba(0,196,180,0.07)',
           }}>
             {/* Name */}
             <div style={{

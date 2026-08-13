@@ -81,7 +81,7 @@ export default function Comments({ songId }: { songId: string }) {
               fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.2em',
               textTransform: 'uppercase', cursor: posting ? 'wait' : 'pointer',
               border: '1px solid var(--gold-border-mid)',
-              background: 'linear-gradient(135deg, rgba(0,130,120,0.55), rgba(0,90,83,0.35))',
+              background: 'linear-gradient(135deg, rgba(13,148,136,0.155), rgba(13,148,136,0.035))',
               color: 'var(--gold-bright)',
               opacity: !draft.trim() ? 0.5 : 1,
             }}

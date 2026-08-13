@@ -266,8 +266,8 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
           transition: 'background 0.3s, border-color 0.3s, transform 0.3s, box-shadow 0.3s',
           transform: hovered ? 'translateY(-8px)' : 'none',
           boxShadow: hovered
-            ? '0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,196,180,0.12), 0 0 48px rgba(0,196,180,0.07)'
-            : '0 2px 12px rgba(0,0,0,0.5)',
+            ? '0 24px 64px rgba(23,58,54,0.08), 0 0 0 1px rgba(0,196,180,0.12), 0 0 48px rgba(0,196,180,0.07)'
+            : '0 2px 12px rgba(23,58,54,0.05)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -399,13 +399,13 @@ export default function Home() {
             </defs>
             <ellipse cx="50" cy="50" rx="26" ry="30" fill="rgba(0,196,180,0.06)"/>
             <path d="M50 82 C37 70 19 57 19 43 C19 30 32 16 50 16 C68 16 81 30 81 43 C81 57 63 70 50 82Z"
-                  fill="rgba(0,196,180,0.07)" stroke="#00c4b4" strokeWidth="2"/>
+                  fill="rgba(0,196,180,0.07)" stroke="#0d9488" strokeWidth="2"/>
             <g clipPath="url(#logo-pick-clip)">
               <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
-                    stroke="#00e8d5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
+                    stroke="#0d9488" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
                     opacity="0.25" filter="url(#logo-glow)"/>
               <path d="M22 49 Q31 33 40 49 Q49 65 58 49 Q67 33 78 49"
-                    stroke="#00e8d5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </g>
           </svg>
 
@@ -422,7 +422,7 @@ export default function Home() {
               letterSpacing: '-0.01em',
               margin: 0,
               lineHeight: 1.02,
-              background: 'linear-gradient(135deg, #ffffff 30%, var(--gold-bright) 100%)',
+              background: 'linear-gradient(135deg, var(--cream) 30%, var(--gold-bright) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',

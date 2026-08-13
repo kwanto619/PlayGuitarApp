@@ -42,7 +42,7 @@ export default function GlobalSearch() {
           -webkit-backdrop-filter: blur(10px);
           color: var(--cream);
           transition: border-color 0.18s, box-shadow 0.18s;
-          box-shadow: ${focused ? '0 0 18px rgba(0,232,213,0.25)' : '0 2px 10px rgba(0,0,0,0.5)'};
+          box-shadow: ${focused ? '0 0 18px rgba(0,232,213,0.25)' : '0 2px 10px rgba(23,58,54,0.05)'};
         }
         .global-search .gs-icon { color: var(--gold-bright); flex-shrink: 0; }
         .global-search input {

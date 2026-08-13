@@ -60,7 +60,7 @@ export default function ConfirmPage() {
         background: 'var(--bg-surface)',
         border: '1px solid var(--gold-border)',
         padding: 'clamp(32px, 5vw, 48px)',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        boxShadow: '0 24px 80px rgba(23,58,54,0.06)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: '0.6rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', marginBottom: '10px' }}>

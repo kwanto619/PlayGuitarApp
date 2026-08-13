@@ -184,8 +184,8 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (v: Voicing) => vo
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-3px)' : 'none',
         boxShadow: hovered
-          ? '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.08)'
-          : '0 4px 16px rgba(0,0,0,0.4)',
+          ? '0 8px 32px rgba(23,58,54,0.06), 0 0 0 1px rgba(0,196,180,0.08)'
+          : '0 4px 16px rgba(23,58,54,0.04)',
         cursor: 'default',
       }}
     >
@@ -258,7 +258,7 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (v: Voicing) => vo
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
           border: '1px solid var(--gold-border-mid)',
-          background: 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+          background: 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
           color: 'var(--gold-bright)',
           cursor: 'pointer',
           transition: 'all 0.15s',
@@ -268,7 +268,7 @@ function ChordCard({ chord, onPlay }: { chord: Chord; onPlay: (v: Voicing) => vo
           e.currentTarget.style.borderColor = 'var(--gold)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))';
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))';
           e.currentTarget.style.borderColor = 'var(--gold-border-mid)';
         }}
       >

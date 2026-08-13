@@ -45,7 +45,7 @@ function GoldBtn({ children, onClick, disabled, variant = 'primary', style }: {
   variant?: 'primary' | 'ghost' | 'danger'; style?: React.CSSProperties;
 }) {
   const v: Record<string, React.CSSProperties> = {
-    primary: { borderColor: 'var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))', color: 'var(--gold-bright)' },
+    primary: { borderColor: 'var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))', color: 'var(--gold-bright)' },
     ghost:   { borderColor: 'var(--gold-border)', background: 'transparent', color: 'var(--cream-muted)' },
     danger:  { borderColor: 'rgba(224,72,72,0.4)', background: 'rgba(224,72,72,0.07)', color: 'var(--red-tuning)' },
   };
@@ -269,7 +269,7 @@ function ProgressionCard({ prog, onClick, index }: { prog: Progression; onClick:
         border: `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border)'}`,
         padding: '22px', cursor: 'pointer',
         transform: hovered ? 'translateY(-3px)' : 'none',
-        boxShadow: hovered ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.1)' : '0 2px 8px rgba(0,0,0,0.4)',
+        boxShadow: hovered ? '0 12px 40px rgba(23,58,54,0.06), 0 0 0 1px rgba(0,196,180,0.1)' : '0 2px 8px rgba(23,58,54,0.04)',
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
       }}
     >
@@ -575,7 +575,7 @@ function BuilderView({
                 padding: '12px 26px', minHeight: '48px', width: '100%',
                 fontSize: '0.95rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase',
                 cursor: 'pointer', border: '1px solid var(--gold-border-mid)',
-                background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                 color: 'var(--gold-bright)',
               }}
             >
@@ -595,7 +595,7 @@ function BuilderView({
                 fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase',
                 cursor: chords.length === 0 ? 'not-allowed' : 'pointer',
                 border: `2px solid ${isPlaying ? 'var(--gold-bright)' : 'var(--gold-border-mid)'}`,
-                background: isPlaying ? 'rgba(0,196,180,0.15)' : 'linear-gradient(135deg, rgba(0,130,120,0.4), rgba(0,90,83,0.2))',
+                background: isPlaying ? 'rgba(0,196,180,0.15)' : 'linear-gradient(135deg, rgba(13,148,136,0.14), rgba(13,148,136,0.02))',
                 color: isPlaying ? 'var(--gold-bright)' : 'var(--cream)',
                 boxShadow: isPlaying ? '0 0 24px rgba(0,196,180,0.2)' : 'none',
                 opacity: chords.length === 0 ? 0.4 : 1,

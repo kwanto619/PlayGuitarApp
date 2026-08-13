@@ -95,7 +95,7 @@ export default function ResetPage() {
         background: 'var(--bg-surface)',
         border: '1px solid var(--gold-border)',
         padding: 'clamp(32px, 5vw, 48px)',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        boxShadow: '0 24px 80px rgba(23,58,54,0.06)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: '0.6rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -150,7 +150,7 @@ export default function ResetPage() {
                 fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
                 textTransform: 'uppercase', cursor: saving ? 'wait' : 'pointer',
                 border: '1px solid var(--gold-border-mid)',
-                background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                 color: saving ? 'var(--cream-muted)' : 'var(--gold-bright)',
                 opacity: saving ? 0.6 : 1, transition: 'all 0.2s',
               }}

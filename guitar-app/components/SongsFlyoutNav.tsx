@@ -64,7 +64,7 @@ export default function SongsFlyoutNav() {
         <div style={{
           padding: '12px 14px',
           borderTop: '1px solid var(--gold-border)',
-          background: 'rgba(0,0,0,0.25)',
+          background: 'rgba(23,58,54,0.025)',
         }}>
           <UserMenu />
         </div>
@@ -216,7 +216,7 @@ function MobileDrawer({
           onClick={() => setOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 40,
-            background: 'rgba(0,0,0,0.65)',
+            background: 'rgba(20,45,42,0.4)',
           }}
         >
           <motion.nav
@@ -265,7 +265,7 @@ function MobileDrawer({
             <div style={{
               padding: '14px',
               borderTop: '1px solid var(--gold-border)',
-              background: 'rgba(0,0,0,0.25)',
+              background: 'rgba(23,58,54,0.025)',
             }}>
               <UserMenu />
             </div>

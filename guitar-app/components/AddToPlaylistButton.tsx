@@ -122,7 +122,7 @@ export default function AddToPlaylistButton({ songId }: { songId: string }) {
           onClick={() => setOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 300,
-            background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
+            background: 'rgba(20,45,42,0.45)', backdropFilter: 'blur(6px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
           }}
         >
@@ -132,7 +132,7 @@ export default function AddToPlaylistButton({ songId }: { songId: string }) {
               background: 'var(--bg-surface)', border: '1px solid var(--gold-border-mid)',
               padding: '32px', width: '100%', maxWidth: '480px',
               maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.85)',
+              boxShadow: '0 24px 80px rgba(23,58,54,0.2)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
@@ -201,7 +201,7 @@ export default function AddToPlaylistButton({ songId }: { songId: string }) {
                         cursor: busy ? 'wait' : 'pointer',
                         opacity: busy ? 0.6 : 1,
                         border: `1px solid ${has ? 'rgba(0,196,180,0.4)' : 'var(--gold-border-mid)'}`,
-                        background: has ? 'rgba(0,196,180,0.15)' : 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+                        background: has ? 'rgba(0,196,180,0.15)' : 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
                         color: 'var(--gold-bright)', whiteSpace: 'nowrap',
                       }}
                     >
@@ -240,7 +240,7 @@ export default function AddToPlaylistButton({ songId }: { songId: string }) {
                       textTransform: 'uppercase', cursor: creatingBusy ? 'wait' : 'pointer',
                       opacity: creatingBusy ? 0.6 : 1,
                       border: '1px solid var(--gold-border-mid)',
-                      background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                      background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                       color: 'var(--gold-bright)',
                     }}
                   >

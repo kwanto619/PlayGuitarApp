@@ -157,7 +157,7 @@ export default function MusicBooksLibrary() {
           background: transparent; color: var(--gold-bright);
           border: 1px solid var(--gold-border); font-size: 0.85rem;
         }
-        .mb-upload:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+        .mb-upload:hover:not(:disabled) { background: rgba(13,148,136,0.08); }
         .mb-upload:disabled { opacity: 0.5; cursor: default; }
         .mb-err {
           color: #ff6b6b; font-size: 0.82rem; margin: 0 0 16px;
@@ -199,7 +199,7 @@ export default function MusicBooksLibrary() {
           position: absolute; top: 8px; right: 8px;
           display: inline-flex; align-items: center; justify-content: center;
           width: 28px; height: 28px; border-radius: 6px;
-          background: rgba(0,0,0,0.6); color: var(--cream);
+          background: rgba(10,20,19,0.55); color: #fff;
           opacity: 0; transition: opacity 0.15s ease;
         }
         .mb-card:hover .mb-del { opacity: 1; }

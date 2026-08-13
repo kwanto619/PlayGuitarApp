@@ -133,12 +133,12 @@ function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
     <div style={{
       position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
       zIndex: 100,
-      background: 'rgba(6,6,6,0.96)',
+      background: 'rgba(255,255,255,0.96)',
       border: '1px solid var(--gold)',
       backdropFilter: 'blur(12px)',
       padding: '14px 24px',
       display: 'flex', alignItems: 'center', gap: '20px',
-      boxShadow: '0 10px 36px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,196,180,0.18)',
+      boxShadow: '0 10px 36px rgba(23,58,54,0.07), 0 0 0 1px rgba(0,196,180,0.18)',
       whiteSpace: 'nowrap',
     }}>
       <span style={{
@@ -205,11 +205,14 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   const playlistName = searchParams.get('playlistName');
   const fromPage = searchParams.get('fromPage');
   const fromLang = searchParams.get('fromLang');
+  const fromSort = searchParams.get('fromSort');
   const fromQ    = searchParams.get('fromQ');
+  const fromArtist = searchParams.get('fromArtist');
 
   const buildMySongsUrl = () => {
     const params = new URLSearchParams();
     if (fromLang) params.set('lang', fromLang);
+    if (fromSort) params.set('sort', fromSort);
     if (fromPage) params.set('page', fromPage);
     if (fromQ)    params.set('q', fromQ);
     const qs = params.toString();
@@ -407,6 +410,10 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
           <button onClick={() => router.push(`/playlists?active=${playlistId}`)} style={backBtnStyle}>
             ← {playlistName ? decodeURIComponent(playlistName) : 'Playlist'}
           </button>
+        ) : fromArtist ? (
+          <button onClick={() => router.push(`/artists/${encodeURIComponent(fromArtist)}`)} style={backBtnStyle}>
+            ← {fromArtist}
+          </button>
         ) : (
           <button onClick={() => router.push(buildMySongsUrl())} style={backBtnStyle}>
             ← Songs
@@ -503,13 +510,24 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 {song.title}
               </h1>
 
-              {/* Artist */}
+              {/* Artist — links to all songs by this artist */}
               <p style={{
                 fontFamily: 'var(--font-cormorant, Georgia, serif)',
                 fontSize: 'clamp(1.1rem, 2vw, 1.35rem)',
                 fontStyle: 'italic', color: 'var(--cream-soft)', margin: '0 0 16px',
               }}>
-                {song.artist}
+                <Link
+                  href={`/artists/${encodeURIComponent(song.artist)}`}
+                  title={`See all songs by ${song.artist}`}
+                  style={{
+                    color: 'inherit',
+                    textDecoration: 'underline',
+                    textDecorationColor: 'var(--gold-border-mid)',
+                    textUnderlineOffset: '4px',
+                  }}
+                >
+                  {song.artist}
+                </Link>
               </p>
 
               {/* Star rating */}
@@ -734,7 +752,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                         fontFamily: 'var(--font-cormorant, Georgia, serif)',
                         cursor: 'pointer',
                         border: '1px solid var(--gold-border-mid)',
-                        background: 'linear-gradient(135deg, rgba(0,130,120,0.35), rgba(0,90,83,0.15))',
+                        background: 'linear-gradient(135deg, rgba(13,148,136,0.135), rgba(13,148,136,0.015))',
                         color: 'var(--gold-bright)',
                         transition: 'all 0.15s',
                       }}
@@ -978,8 +996,8 @@ function ActionBtn({ onClick, children, gold, danger, prominent, title }: {
                : gold || prominent ? '1px solid var(--gold-border-mid)'
                :         '1px solid var(--gold-border)',
         background: danger ? 'rgba(224,72,72,0.08)'
-                  : prominent ? 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))'
-                  : gold   ? 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))'
+                  : prominent ? 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))'
+                  : gold   ? 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))'
                   :          'transparent',
         color: danger ? 'var(--red-tuning)' : (gold || prominent) ? 'var(--gold-bright)' : 'var(--cream-muted)',
         transition: 'all 0.15s',

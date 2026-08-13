@@ -84,7 +84,7 @@ export default function NotificationBell() {
           width: '320px', maxHeight: '420px', overflowY: 'auto',
           background: 'var(--bg-surface)',
           border: '1px solid var(--gold-border-mid)',
-          boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
+          boxShadow: '0 -12px 40px rgba(23,58,54,0.06)',
           zIndex: 50,
         }}>
           <div style={{

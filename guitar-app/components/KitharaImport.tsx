@@ -348,7 +348,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
           onClick={reset}
           style={{
             position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.88)',
+            background: 'rgba(20,45,42,0.45)',
             backdropFilter: 'blur(6px)',
             zIndex: 200,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -366,7 +366,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
               maxWidth: '680px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.85)',
+              boxShadow: '0 24px 80px rgba(23,58,54,0.2)',
             }}
           >
             {/* Corner brackets */}
@@ -435,7 +435,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                         setError('Failed to parse the pasted HTML.');
                       }
                     }}
-                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
+                    style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em', textTransform: 'uppercase', cursor: 'pointer', border: '1px solid var(--gold-border-mid)', background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))', color: 'var(--gold-bright)', transition: 'all 0.2s' }}
                   >
                     Parse →
                   </button>
@@ -485,7 +485,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                     fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
                     textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer',
                     border: '1px solid var(--gold-border-mid)',
-                    background: loading ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                    background: loading ? 'transparent' : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                     color: loading ? 'var(--cream-muted)' : 'var(--gold-bright)',
                     transition: 'all 0.2s',
                     opacity: loading ? 0.6 : 1,
@@ -565,7 +565,7 @@ export default function KitharaImport({ onImported }: { onImported: (song: Song)
                       fontSize: '1rem', fontWeight: 600, letterSpacing: '0.25em',
                       textTransform: 'uppercase', cursor: saving ? 'wait' : 'pointer',
                       border: '1px solid var(--gold-border-mid)',
-                      background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                      background: saving ? 'transparent' : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                       color: saving ? 'var(--cream-muted)' : 'var(--gold-bright)',
                       transition: 'all 0.2s',
                       opacity: saving ? 0.6 : 1,

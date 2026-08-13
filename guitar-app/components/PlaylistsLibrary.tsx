@@ -63,7 +63,7 @@ function GoldBtn({
   const variants: Record<string, React.CSSProperties> = {
     primary: {
       borderColor: 'var(--gold-border-mid)',
-      background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+      background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
       color: 'var(--gold-bright)',
     },
     ghost: {
@@ -108,7 +108,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (na
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
+        background: 'rgba(20,45,42,0.45)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
       }}
     >
@@ -117,7 +117,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (na
         style={{
           background: 'var(--bg-surface)', border: '1px solid var(--gold-border-mid)',
           padding: '36px', width: '100%', maxWidth: '440px',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.85)',
+          boxShadow: '0 24px 80px rgba(23,58,54,0.2)',
         }}
       >
         <div style={{ fontSize: '0.58rem', letterSpacing: '0.45em', color: 'var(--gold-dim)', textTransform: 'uppercase', fontFamily: 'var(--font-cormorant, Georgia, serif)', marginBottom: '6px' }}>
@@ -186,7 +186,7 @@ function SongPickerModal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)',
+        background: 'rgba(20,45,42,0.45)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
       }}
     >
@@ -196,7 +196,7 @@ function SongPickerModal({
           background: 'var(--bg-surface)', border: '1px solid var(--gold-border-mid)',
           padding: '36px', width: '100%', maxWidth: '560px',
           maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.85)',
+          boxShadow: '0 24px 80px rgba(23,58,54,0.2)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
@@ -258,7 +258,7 @@ function SongPickerModal({
                       fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.15em',
                       textTransform: 'uppercase', cursor: 'pointer',
                       border: '1px solid var(--gold-border-mid)',
-                      background: 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+                      background: 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
                       color: 'var(--gold-bright)', whiteSpace: 'nowrap',
                     }}
                   >
@@ -527,8 +527,8 @@ function PlaylistCard({ playlist, songCount, onClick }: { playlist: Playlist; so
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-4px)' : 'none',
         boxShadow: hovered
-          ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,196,180,0.08)'
-          : '0 4px 16px rgba(0,0,0,0.4)',
+          ? '0 12px 40px rgba(23,58,54,0.06), 0 0 0 1px rgba(0,196,180,0.08)'
+          : '0 4px 16px rgba(23,58,54,0.04)',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',

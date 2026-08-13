@@ -22,7 +22,7 @@ export default function Flag({
         height: '1em',
         verticalAlign: '-0.12em',
         borderRadius: '2px',
-        boxShadow: '0 0 0 1px rgba(0,0,0,0.4)',
+        boxShadow: '0 0 0 1px rgba(23,58,54,0.25)',
         ...style,
       }}
       aria-label={label}

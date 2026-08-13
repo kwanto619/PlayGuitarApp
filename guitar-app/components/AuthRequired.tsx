@@ -70,7 +70,7 @@ const primaryBtn: React.CSSProperties = {
   fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.22em',
   textTransform: 'uppercase',
   border: '1px solid var(--gold-border-mid)',
-  background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+  background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
   color: 'var(--gold-bright)', textDecoration: 'none',
 };
 

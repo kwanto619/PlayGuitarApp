@@ -45,10 +45,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" style={{ background: '#000', color: '#f0f0f0', colorScheme: 'dark' }}>
+    <html lang="en" style={{ background: '#f2f7f6', color: '#17282b', colorScheme: 'light' }}>
       <body
         className={`${spaceGrotesk.variable} ${fontCormorantAlias.variable} ${ibmMono.variable} antialiased`}
-        style={{ background: '#000', color: '#f0f0f0' }}
+        style={{ background: '#f2f7f6', color: '#17282b' }}
       >
         <AuthProvider>
           <SmoothScroll />

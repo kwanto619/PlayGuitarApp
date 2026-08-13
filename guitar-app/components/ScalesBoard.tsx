@@ -464,7 +464,7 @@ export default function ScalesBoard({ defaultScale = 'minor-pentatonic', default
                   <text
                     x={cx} y={cy + 4}
                     textAnchor="middle" fontSize="10.5" fontWeight="700"
-                    fill={isRoot ? '#000' : 'var(--gold-bright)'}
+                    fill={isRoot ? '#fff' : 'var(--gold-bright)'}
                     style={{ pointerEvents: 'none' }}
                   >
                     {NOTES[semitone]}
@@ -507,7 +507,7 @@ function TabView({ notes }: { notes: { stringIdx: number; fret: number; pitch: n
     <div style={{
       marginTop: '16px',
       border: '1px solid var(--gold-border-mid)',
-      background: '#060606',
+      background: 'var(--bg-card)',
       padding: '12px 14px',
       overflowX: 'auto',
     }}>

@@ -461,7 +461,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
           <style>{`
             .pdf-overlay {
               position: fixed; inset: 0; z-index: 100;
-              background: rgba(0,0,0,0.82);
+              background: rgba(20,45,42,0.5);
               backdrop-filter: blur(4px);
               display: flex; align-items: center; justify-content: center;
               padding: 24px;
@@ -477,7 +477,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               display: flex; align-items: center; justify-content: space-between;
               gap: 12px; padding: 10px 14px; flex-wrap: wrap;
               border-bottom: 1px solid var(--gold-border);
-              background: rgba(0,0,0,0.3);
+              background: rgba(13,148,136,0.05);
             }
             .pdf-title { display: flex; flex-direction: column; min-width: 0; }
             .pdf-title strong {
@@ -493,7 +493,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               border: 1px solid transparent; cursor: pointer;
             }
             .pdf-controls button:hover:not(:disabled) {
-              background: rgba(255,255,255,0.08); border-color: var(--gold-border);
+              background: rgba(13,148,136,0.08); border-color: var(--gold-border);
             }
             .pdf-controls button:disabled { opacity: 0.3; cursor: default; }
             .pdf-controls button.active {
@@ -519,7 +519,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               background: var(--bg-surface);
               border: 1px solid var(--gold-border);
               border-radius: 10px; padding: 10px;
-              box-shadow: 0 18px 48px rgba(0,0,0,0.65);
+              box-shadow: 0 18px 48px rgba(23,58,54,0.065);
               z-index: 30;
             }
             .pdf-page-picker-label {
@@ -551,13 +551,13 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
               background: var(--bg-surface);
               border: 1px solid var(--gold-border);
               border-radius: 10px; padding: 10px;
-              box-shadow: 0 18px 48px rgba(0,0,0,0.65);
+              box-shadow: 0 18px 48px rgba(23,58,54,0.065);
               z-index: 30;
             }
             .pdf-search-row { display: flex; gap: 6px; }
             .pdf-search-input {
               flex: 1; min-width: 0; padding: 7px 10px;
-              background: rgba(255,255,255,0.06);
+              background: rgba(13,148,136,0.06);
               border: 1px solid var(--gold-border);
               border-radius: 6px; color: var(--cream);
               font: inherit; font-size: 0.82rem; outline: none;
@@ -605,7 +605,7 @@ export default function PdfViewerModal({ book, url, onClose }: Props) {
             }
             .pdf-canvas {
               display: block; border-radius: 4px;
-              box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+              box-shadow: 0 8px 32px rgba(23,58,54,0.05);
               background: #fff;
             }
             .pdf-msg {

@@ -124,7 +124,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     fontSize: '0.88rem', fontWeight: 600, letterSpacing: '0.2em',
                     textTransform: 'uppercase', cursor: busy ? 'wait' : 'pointer',
                     border: `1px solid ${following ? 'var(--gold-border)' : 'var(--gold-border-mid)'}`,
-                    background: following ? 'transparent' : 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+                    background: following ? 'transparent' : 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
                     color: following ? 'var(--cream-muted)' : 'var(--gold-bright)',
                     transition: 'all 0.15s',
                   }}
@@ -342,7 +342,7 @@ function ProfilePlaylistCard({ playlist, isOwn, signedIn }: { playlist: Playlist
             border: `1px solid ${(already || done) ? 'var(--gold-border)' : 'var(--gold-border-mid)'}`,
             background: (already || done)
               ? 'rgba(0,196,180,0.05)'
-              : 'linear-gradient(135deg, rgba(0,130,120,0.5), rgba(0,90,83,0.3))',
+              : 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
             color: (already || done) ? 'var(--cream-muted)' : 'var(--gold-bright)',
             transition: 'all 0.15s',
           }}

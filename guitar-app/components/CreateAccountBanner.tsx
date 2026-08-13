@@ -24,7 +24,7 @@ export default function CreateAccountBanner() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         gap: 'clamp(18px, 3vw, 36px)', flexWrap: 'wrap',
         overflow: 'hidden',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+        boxShadow: '0 2px 12px rgba(23,58,54,0.05)',
       }}>
         {/* Soft teal glow */}
         <div style={{
@@ -81,7 +81,7 @@ export default function CreateAccountBanner() {
               fontSize: '0.95rem', fontWeight: 600, letterSpacing: '0.22em',
               textTransform: 'uppercase',
               border: `1px solid ${hovered ? 'var(--gold)' : 'var(--gold-border-mid)'}`,
-              background: 'linear-gradient(135deg, rgba(0,130,120,0.6), rgba(0,90,83,0.4))',
+              background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
               color: 'var(--gold-bright)',
               boxShadow: hovered ? '0 0 24px rgba(0,232,213,0.18)' : 'none',
               transition: 'border-color 0.25s, box-shadow 0.25s',
