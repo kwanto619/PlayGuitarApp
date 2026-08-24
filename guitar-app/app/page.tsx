@@ -420,25 +420,11 @@ function Discovery() {
     return [...acc.values()].sort((a, b) => b.views - a.views || b.songs - a.songs).slice(0, 8);
   }, [popular, byId, songs]);
 
-  const stats = useMemo(() => {
-    if (!songs) return null;
-    const artists = new Set(songs.map((s) => s.artist.trim().toLowerCase())).size;
-    return { songs: songs.length, artists };
-  }, [songs]);
-
   if (!songs || popular === null) return null;
   if (popularSongs.length === 0 && popularArtists.length === 0) return null;
 
   return (
     <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(16px, 2.5vw, 28px) clamp(16px, 3vw, 36px) 0', boxSizing: 'border-box' }}>
-      {/* Quick stats */}
-      {stats && (
-        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 56px)', justifyContent: 'center', marginBottom: 'clamp(18px, 3vw, 28px)' }}>
-          <Stat n={stats.songs} label="Songs" href="/songs" />
-          <Stat n={stats.artists} label="Artists" href="/artists" />
-        </div>
-      )}
-
       {popularSongs.length > 0 && (
         <section style={{ marginBottom: 'clamp(28px, 4vw, 44px)' }}>
           <SectionHead label={`Most played · ${popularWindow}`} title="Popular Songs" href="/top" cta="Full chart" />
@@ -507,19 +493,6 @@ function SectionHead({ label, title, href, cta }: { label: string; title: string
       </div>
       {href && <Link href={href} style={ghostLink}>{cta ?? 'All'} →</Link>}
     </div>
-  );
-}
-
-function Stat({ n, label, href }: { n: number; label: string; href: string }) {
-  const pretty = n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k+` : String(n);
-  return (
-    <Link href={href} style={{ textDecoration: 'none', textAlign: 'center' }}>
-      <div style={{
-        fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: 'clamp(1.3rem, 2.4vw, 1.7rem)',
-        fontWeight: 700, color: 'var(--cream)', lineHeight: 1,
-      }}>{pretty}</div>
-      <div style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginTop: '4px' }}>{label}</div>
-    </Link>
   );
 }
 
