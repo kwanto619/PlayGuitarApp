@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FiMenu, FiX, FiArrowRight, FiMusic, FiGrid, FiHeart, FiRss, FiHome,
-  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch, FiBook,
+  FiTarget, FiTool, FiChevronDown, FiClock, FiActivity, FiSearch, FiBook, FiUsers, FiTrendingUp,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import UserMenu from './UserMenu';
@@ -17,6 +17,8 @@ type Item = Leaf | Group;
 const ITEMS: Item[] = [
   { kind: 'leaf', href: '/',          label: 'Home',          Icon: FiHome,  desc: 'Companion dashboard' },
   { kind: 'leaf', href: '/songs',     label: 'Songs',         Icon: FiMusic, desc: 'Community library' },
+  { kind: 'leaf', href: '/artists',   label: 'Artists',       Icon: FiUsers, desc: 'Browse by artist' },
+  { kind: 'leaf', href: '/top',       label: 'Top',           Icon: FiTrendingUp, desc: 'Most popular' },
   { kind: 'leaf', href: '/chords',    label: 'Chord Library', Icon: FiGrid,  desc: 'Shapes & diagrams' },
   { kind: 'leaf', href: '/playlists', label: 'Playlists',     Icon: FiMusic, desc: 'Your setlists' },
   { kind: 'leaf', href: '/favorites', label: 'Favorites',     Icon: FiHeart, desc: 'Starred songs' },
@@ -111,7 +113,7 @@ export default function SongsFlyoutNav() {
 function RailLink({ item, inDrawer }: { item: Leaf; inDrawer?: boolean }) {
   const pathname = usePathname();
   const [hovered, setHovered] = useState(false);
-  const active = pathname === item.href;
+  const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
   const hot = hovered || active;
   const { Icon } = item;
   return (

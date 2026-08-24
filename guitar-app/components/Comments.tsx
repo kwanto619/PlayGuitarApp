@@ -48,12 +48,22 @@ export default function Comments({ songId }: { songId: string }) {
 
   return (
     <section style={{ marginTop: '48px' }}>
-      <div style={{
-        fontSize: '0.6rem', letterSpacing: '0.45em', textTransform: 'uppercase',
-        color: 'var(--gold-dim)', fontFamily: 'var(--font-cormorant, Georgia, serif)',
-        marginBottom: '12px',
-      }}>
-        Comments {list.length > 0 && `(${list.length})`}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' }}>
+        <h3 style={{
+          fontFamily: 'var(--font-cormorant, Georgia, serif)',
+          fontSize: '1.5rem', fontWeight: 600, letterSpacing: '0.03em',
+          color: 'var(--gold-bright)', margin: 0,
+        }}>
+          Comments
+        </h3>
+        <span style={{
+          minWidth: '26px', height: '26px', padding: '0 8px', borderRadius: '6px',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold-bright)',
+          background: 'rgba(13,148,136,0.1)', border: '1px solid var(--gold-border-mid)',
+        }}>
+          {list.length}
+        </span>
       </div>
 
       {/* Compose */}
@@ -91,12 +101,36 @@ export default function Comments({ songId }: { songId: string }) {
         </div>
       )}
 
+      {/* Visitors: sign-in call to action (tabsy-style) */}
+      {!user && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap',
+          padding: '14px 16px', marginBottom: '20px',
+          border: '1px dashed var(--gold-border-mid)', background: 'rgba(13,148,136,0.04)',
+        }}>
+          <span style={{ fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.95rem', color: 'var(--cream-soft)' }}>
+            You need to be signed in to post a comment.
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Link href="/login" style={{
+              padding: '9px 16px', minHeight: '40px', display: 'inline-flex', alignItems: 'center',
+              fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.78rem', fontWeight: 600,
+              letterSpacing: '0.18em', textTransform: 'uppercase', textDecoration: 'none',
+              border: '1px solid var(--gold-border-mid)', color: 'var(--gold-bright)',
+              background: 'linear-gradient(135deg, rgba(13,148,136,0.155), rgba(13,148,136,0.035))', borderRadius: '8px',
+            }}>
+              Sign in to comment
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* List */}
       {loading ? (
         <div style={{ fontSize: '0.9rem', color: 'var(--cream-muted)', fontStyle: 'italic' }}>Loading…</div>
       ) : list.length === 0 ? (
         <div style={{ fontSize: '0.95rem', color: 'var(--cream-muted)', fontStyle: 'italic', fontFamily: 'var(--font-cormorant, Georgia, serif)' }}>
-          No comments yet. {user ? 'Be the first.' : 'Sign in to post.'}
+          No comments yet. {user ? 'Share your thoughts or leave a tip for other players.' : 'Be the first to share a tip.'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

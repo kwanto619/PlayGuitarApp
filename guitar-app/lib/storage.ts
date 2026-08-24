@@ -1,4 +1,4 @@
-import { Song, Playlist, Progression, Profile, Comment, Notification } from '@/types';
+import { Song, Playlist, Progression, Profile, Comment, Notification, RatingSummary } from '@/types';
 import { supabase } from './supabase';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -175,12 +175,61 @@ export const loadPlayCounts = async (): Promise<Record<string, number>> => {
   return out;
 };
 
-/** Atomically increment a song's open count for the signed-in user. */
+/** Log a song open (anonymous visitors count towards popularity; members also
+ *  get their per-user counter bumped). Atomic, server-side. */
 export const bumpSongView = async (songId: string): Promise<void> => {
-  const uid = await currentUserId();
-  if (!uid) return;
   const { error } = await supabase.rpc('bump_song_view', { p_song_id: songId });
   if (error) console.error('bumpSongView:', error);
+};
+
+// ── Popularity (time-windowed, community-wide) ───────────────────────────────
+export type PopularWindow = 7 | 30 | 0; // days; 0 = all time
+
+/** Song ids ranked by opens in the last N days (0 = all time). Anonymous OK. */
+export const loadPopularSongs = async (days: PopularWindow, limit = 50): Promise<{ songId: string; views: number }[]> => {
+  const { data, error } = await supabase.rpc('popular_songs', { p_days: days, p_limit: limit });
+  if (error) { console.error('loadPopularSongs:', error); return []; }
+  return (data ?? []).map((r: { song_id: string; views: number }) => ({ songId: r.song_id, views: Number(r.views) }));
+};
+
+/** Songs the signed-in member opened most recently (newest first). */
+export const loadRecentlyViewed = async (limit = 8): Promise<Song[]> => {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data, error } = await supabase.rpc('recently_viewed', { p_limit: limit });
+  if (error) { console.error('loadRecentlyViewed:', error); return []; }
+  const ids: string[] = (data ?? []).map((r: { song_id: string }) => r.song_id);
+  if (ids.length === 0) return [];
+  const all = await loadSongs();
+  const byId = new Map(all.map((s) => [s.id, s]));
+  return ids.map((id) => byId.get(id)).filter((s): s is Song => !!s);
+};
+
+// ── Community ratings ────────────────────────────────────────────────────────
+/** { songId: { avg, count } } for every rated song. */
+export const loadRatingSummary = async (): Promise<Record<string, RatingSummary>> => {
+  const { data, error } = await supabase.from('song_rating_summary').select('song_id, avg_stars, rating_count');
+  if (error) { console.error('loadRatingSummary:', error); return {}; }
+  const out: Record<string, RatingSummary> = {};
+  (data ?? []).forEach((r) => { out[r.song_id] = { avg: Number(r.avg_stars), count: r.rating_count }; });
+  return out;
+};
+
+/** The signed-in member's own ratings as { songId: stars }. */
+export const loadMyRatings = async (): Promise<Record<string, number>> => {
+  const uid = await currentUserId();
+  if (!uid) return {};
+  const { data, error } = await supabase.from('song_ratings').select('song_id, stars').eq('user_id', uid);
+  if (error) { console.error('loadMyRatings:', error); return {}; }
+  const out: Record<string, number> = {};
+  (data ?? []).forEach((r) => { out[r.song_id] = r.stars; });
+  return out;
+};
+
+/** Set (1–5) or clear (null) the caller's rating for a song. Requires sign-in. */
+export const rateSong = async (songId: string, stars: number | null): Promise<void> => {
+  const { error } = await supabase.rpc('rate_song', { p_song_id: songId, p_stars: stars });
+  if (error) { console.error('rateSong:', error); throw new Error('Failed to save rating'); }
 };
 
 export const exportSongs = async (): Promise<void> => {

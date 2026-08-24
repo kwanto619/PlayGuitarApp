@@ -3,9 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Song } from '@/types';
-import { loadSongs, addSong, deleteSong, updateSong, subscribeSongs, loadPlayCounts, bumpSongView } from '@/lib/storage';
+import { loadSongs, addSong, deleteSong, subscribeSongs, loadPlayCounts } from '@/lib/storage';
+import { useAuth } from '@/lib/auth';
 import GeneralImport from './GeneralImport';
 import Flag from './Flag';
+import RatingStars from './RatingStars';
+import { useRatings } from '@/lib/useRatings';
 
 type PlayCounts = Record<string, number>;
 type SortKey = 'newest' | 'oldest' | 'rating' | 'watched';
@@ -118,6 +121,7 @@ const corners: React.CSSProperties[] = [
 
 export default function SongsLibrary() {
   const router = useRouter();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [songs,          setSongs]          = useState<Song[]>([]);
   const [showAddForm,    setShowAddForm]    = useState(false);
@@ -131,6 +135,7 @@ export default function SongsLibrary() {
     initialSort && SORT_OPTIONS.some((o) => o.value === initialSort) ? initialSort : 'newest'
   );
   const [playCounts,     setPlayCounts]     = useState<PlayCounts>({});
+  const { summaryOf } = useRatings();
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   const [page,           setPage]           = useState(initialPage);
   const PAGE_SIZE = 15;
@@ -215,7 +220,11 @@ export default function SongsLibrary() {
     switch (sort) {
       case 'oldest':  return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
       // Ties fall back to newest so ordering is stable & meaningful.
-      case 'rating':  return (b.rating ?? 0) - (a.rating ?? 0) || byNewest(a, b);
+      case 'rating': {
+        // Community average first, then vote count, then recency.
+        const ra = summaryOf(a.id), rb = summaryOf(b.id);
+        return (rb?.avg ?? 0) - (ra?.avg ?? 0) || (rb?.count ?? 0) - (ra?.count ?? 0) || byNewest(a, b);
+      }
       case 'watched': return (playCounts[b.id] ?? 0) - (playCounts[a.id] ?? 0) || byNewest(a, b);
       default:        return byNewest(a, b);
     }
@@ -224,17 +233,6 @@ export default function SongsLibrary() {
   const totalPages  = Math.max(1, Math.ceil(sortedSongs.length / PAGE_SIZE));
   const safePage    = Math.min(page, totalPages);
   const visibleSongs = sortedSongs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const handleRating = async (songId: string, rating: number) => {
-    const song = songs.find((s) => s.id === songId);
-    if (!song) return;
-    // Toggle off if same star clicked again
-    const newRating = song.rating === rating ? undefined : rating;
-    try {
-      await updateSong(songId, { ...song, rating: newRating });
-      setSongs((prev) => prev.map((s) => s.id === songId ? { ...s, rating: newRating } : s));
-    } catch { /* silent */ }
-  };
 
   return (
     <div>
@@ -437,9 +435,8 @@ export default function SongsLibrary() {
               key={song.id}
               song={song}
               onClick={() => {
-                // Optimistic bump so re-sorting feels instant; DB write is fire-and-forget.
+                // Optimistic bump so re-sorting feels instant; the song page logs the view.
                 setPlayCounts((prev) => ({ ...prev, [song.id]: (prev[song.id] ?? 0) + 1 }));
-                bumpSongView(song.id);
                 const params = new URLSearchParams();
                 params.set('fromPage', String(safePage));
                 if (languageFilter !== 'all') params.set('fromLang', languageFilter);
@@ -448,8 +445,8 @@ export default function SongsLibrary() {
                 router.push(`/songs/${song.id}?${params.toString()}`);
               }}
               onArtistClick={() => router.push(`/artists/${encodeURIComponent(song.artist)}`)}
-              onDelete={() => handleDeleteSong(song.id)}
-              onRate={(r) => handleRating(song.id, r)}
+              onDelete={user && song.userId === user.id ? () => handleDeleteSong(song.id) : undefined}
+              showRating
             />
           ))}
         </div>
@@ -510,40 +507,9 @@ const paginationBtn = (disabled: boolean): React.CSSProperties => ({
   opacity: disabled ? 0.4 : 1, transition: 'all 0.15s',
 });
 
-function StarRating({ value, onChange }: { value?: number; onChange: (r: number) => void }) {
-  const [hovered, setHovered] = useState(0);
-  return (
-    <div
-      style={{ display: 'flex', gap: '2px' }}
-      onMouseLeave={() => setHovered(0)}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {[1, 2, 3, 4, 5].map((star) => {
-        const filled = star <= (hovered || value || 0);
-        return (
-          <span
-            key={star}
-            onMouseEnter={() => setHovered(star)}
-            onClick={() => onChange(star)}
-            style={{
-              fontSize: '1rem', cursor: 'pointer', lineHeight: 1,
-              color: filled ? '#f5a623' : 'var(--cream-muted)',
-              opacity: filled ? 1 : 0.35,
-              transition: 'color 0.1s, opacity 0.1s',
-              userSelect: 'none',
-            }}
-          >
-            ★
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-export function SongCard({ song, onClick, onDelete, onRate, onArtistClick }: {
+export function SongCard({ song, onClick, onDelete, showRating, onArtistClick }: {
   song: Song; onClick: () => void;
-  onDelete?: () => void; onRate?: (r: number) => void; onArtistClick?: () => void;
+  onDelete?: () => void; showRating?: boolean; onArtistClick?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -607,8 +573,8 @@ export function SongCard({ song, onClick, onDelete, onRate, onArtistClick }: {
         ) : song.artist}
       </p>
 
-      {onRate && <div style={{ marginBottom: '12px' }}>
-        <StarRating value={song.rating} onChange={onRate} />
+      {showRating && <div style={{ marginBottom: '12px' }}>
+        <RatingStars songId={song.id} size="sm" showSignIn={false} />
       </div>}
 
       {song.chords.length > 0 && (

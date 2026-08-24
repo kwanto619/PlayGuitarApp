@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import CreateAccountBanner from '@/components/CreateAccountBanner';
+import MiniSongCard from '@/components/MiniSongCard';
+import { ghostLink, sectionLabel, sectionTitle } from '@/components/ui';
+import { loadPopularSongs, loadRecentlyViewed, loadSongs } from '@/lib/storage';
+import type { Song } from '@/types';
 
 const AUTH_REQUIRED = new Set(['/playlists', '/favorites', '/feed']);
 
@@ -250,7 +254,7 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
   const [hovered, setHovered] = useState(false);
   const { user } = useAuth();
   const locked = !user && AUTH_REQUIRED.has(href);
-  const target = locked ? '/auth' : href;
+  const target = locked ? '/login' : href;
 
   return (
     <Link href={target} style={{ textDecoration: 'none', display: 'block' }}>
@@ -362,6 +366,163 @@ function NavCard({ href, label, subtitle, description, Icon }: typeof cards[numb
   );
 }
 
+// ── Discovery strips ("Popular songs / Popular artists / Recently viewed") ──
+function Discovery() {
+  const { user } = useAuth();
+  const [songs, setSongs] = useState<Song[] | null>(null);
+  const [popular, setPopular] = useState<{ songId: string; views: number }[] | null>(null);
+  const [popularWindow, setPopularWindow] = useState<'30 days' | 'all time'>('30 days');
+  const [recent, setRecent] = useState<Song[]>([]);
+
+  useEffect(() => {
+    loadSongs().then(setSongs);
+    (async () => {
+      let r = await loadPopularSongs(30, 24);
+      if (r.length < 4) { r = await loadPopularSongs(0, 24); setPopularWindow('all time'); }
+      setPopular(r);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!user) { setRecent([]); return; }
+    loadRecentlyViewed(8).then(setRecent);
+  }, [user]);
+
+  const byId = useMemo(() => new Map((songs ?? []).map((s) => [s.id, s])), [songs]);
+
+  const popularSongs = useMemo(() =>
+    (popular ?? []).map((p) => ({ song: byId.get(p.songId), views: p.views }))
+      .filter((x): x is { song: Song; views: number } => !!x.song)
+      .slice(0, 8),
+  [popular, byId]);
+
+  const popularArtists = useMemo(() => {
+    const acc = new Map<string, { name: string; views: number; songs: number }>();
+    for (const p of popular ?? []) {
+      const s = byId.get(p.songId); if (!s) continue;
+      const key = s.artist.trim().toLowerCase();
+      const cur = acc.get(key);
+      if (cur) { cur.views += p.views; cur.songs += 1; }
+      else acc.set(key, { name: s.artist.trim(), views: p.views, songs: 1 });
+    }
+    // Fill with most-uploaded artists when there is little play data.
+    if (acc.size < 8 && songs) {
+      const counts = new Map<string, { name: string; songs: number }>();
+      for (const s of songs) {
+        const key = s.artist.trim().toLowerCase();
+        const c = counts.get(key);
+        if (c) c.songs += 1; else counts.set(key, { name: s.artist.trim(), songs: 1 });
+      }
+      [...counts.entries()].sort((a, b) => b[1].songs - a[1].songs).forEach(([key, v]) => {
+        if (acc.size < 8 && !acc.has(key)) acc.set(key, { name: v.name, views: 0, songs: v.songs });
+      });
+    }
+    return [...acc.values()].sort((a, b) => b.views - a.views || b.songs - a.songs).slice(0, 8);
+  }, [popular, byId, songs]);
+
+  const stats = useMemo(() => {
+    if (!songs) return null;
+    const artists = new Set(songs.map((s) => s.artist.trim().toLowerCase())).size;
+    return { songs: songs.length, artists };
+  }, [songs]);
+
+  if (!songs || popular === null) return null;
+  if (popularSongs.length === 0 && popularArtists.length === 0) return null;
+
+  return (
+    <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(24px, 4vw, 44px) clamp(16px, 3vw, 36px) 0', boxSizing: 'border-box' }}>
+      {/* Quick stats */}
+      {stats && (
+        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 56px)', justifyContent: 'center', marginBottom: 'clamp(24px, 4vw, 40px)' }}>
+          <Stat n={stats.songs} label="Songs" href="/songs" />
+          <Stat n={stats.artists} label="Artists" href="/artists" />
+        </div>
+      )}
+
+      {popularSongs.length > 0 && (
+        <section style={{ marginBottom: 'clamp(28px, 4vw, 44px)' }}>
+          <SectionHead label={`Most played · ${popularWindow}`} title="Popular Songs" href="/top" cta="Full chart" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 230px), 1fr))', gap: '12px' }}>
+            {popularSongs.map(({ song, views }, i) => (
+              <MiniSongCard key={song.id} song={song} rank={i + 1} meta={`${views.toLocaleString()} plays`} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {popularArtists.length > 0 && (
+        <section style={{ marginBottom: 'clamp(28px, 4vw, 44px)' }}>
+          <SectionHead label="Community favourites" title="Popular Artists" href="/artists" cta="All artists" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: '10px' }}>
+            {popularArtists.map((a) => (
+              <Link key={a.name.toLowerCase()} href={`/artists/${encodeURIComponent(a.name)}`} className="home-artist" style={{
+                display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0,
+                padding: '10px 12px', textDecoration: 'none',
+                background: 'var(--bg-card)', border: '1px solid var(--gold-border)',
+                boxShadow: '0 2px 10px rgba(23,58,54,0.035)', transition: 'border-color 0.2s, transform 0.2s',
+              }}>
+                <span style={{
+                  width: '40px', height: '40px', flex: '0 0 auto', borderRadius: '10px',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-cormorant, Georgia, serif)', fontWeight: 700, fontSize: '0.9rem',
+                  color: '#fff', background: 'linear-gradient(135deg, var(--gold), var(--gold-bright))',
+                }}>
+                  {a.name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')}
+                </span>
+                <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{
+                    fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: '0.98rem', fontWeight: 600,
+                    color: 'var(--cream)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>{a.name}</span>
+                  <span style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--cream-muted)' }}>
+                    {a.songs} {a.songs === 1 ? 'song' : 'songs'}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {user && recent.length > 0 && (
+        <section style={{ marginBottom: 'clamp(8px, 2vw, 16px)' }}>
+          <SectionHead label="Pick up where you left off" title="Recently Viewed" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 230px), 1fr))', gap: '12px' }}>
+            {recent.map((s) => <MiniSongCard key={s.id} song={s} />)}
+          </div>
+        </section>
+      )}
+
+      <style>{`.home-artist:hover { border-color: var(--gold-border-mid) !important; transform: translateY(-2px); }`}</style>
+    </div>
+  );
+}
+
+function SectionHead({ label, title, href, cta }: { label: string; title: string; href?: string; cta?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ ...sectionLabel, marginBottom: '4px' }}>{label}</div>
+        <h2 style={sectionTitle}>{title}</h2>
+      </div>
+      {href && <Link href={href} style={ghostLink}>{cta ?? 'All'} →</Link>}
+    </div>
+  );
+}
+
+function Stat({ n, label, href }: { n: number; label: string; href: string }) {
+  const pretty = n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k+` : String(n);
+  return (
+    <Link href={href} style={{ textDecoration: 'none', textAlign: 'center' }}>
+      <div style={{
+        fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
+        fontWeight: 700, color: 'var(--cream)', lineHeight: 1,
+      }}>{pretty}</div>
+      <div style={{ fontSize: '0.66rem', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginTop: '6px' }}>{label}</div>
+    </Link>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   return (
@@ -435,6 +596,9 @@ export default function Home() {
 
       {/* ── Signed-out call-to-action ── */}
       <CreateAccountBanner />
+
+      {/* ── Discovery: popular songs / artists / recently viewed ── */}
+      <Discovery />
 
       {/* ── Grid ── */}
       <div style={{

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
 import { Song } from '@/types';
-import { loadSongs, bumpSongView } from '@/lib/storage';
+import { loadSongs } from '@/lib/storage';
 import { SongCard } from '@/components/SongsLibrary';
 
 export default function ArtistPage({ params }: { params: Promise<{ name: string }> }) {
@@ -91,10 +91,8 @@ export default function ArtistPage({ params }: { params: Promise<{ name: string 
               <SongCard
                 key={song.id}
                 song={song}
-                onClick={() => {
-                  bumpSongView(song.id);
-                  router.push(`/songs/${song.id}?fromArtist=${encodeURIComponent(artistName)}`);
-                }}
+                onClick={() => router.push(`/songs/${song.id}?fromArtist=${encodeURIComponent(artistName)}`)}
+                showRating
               />
             ))}
           </div>

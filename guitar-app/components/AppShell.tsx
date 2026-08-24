@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import SongsFlyoutNav from './SongsFlyoutNav';
 
 // Routes that render WITHOUT the sidebar/search chrome.
-const BARE_ROUTES = ['/auth'];
+const BARE_ROUTES = ['/auth', '/login', '/register'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/';

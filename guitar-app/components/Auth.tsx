@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 const inputStyle: React.CSSProperties = {
@@ -37,13 +38,55 @@ const TITLES: Record<Mode, string> = {
   forgot: 'Reset Password',
 };
 
-export default function Auth() {
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+/** Password field with a show/hide toggle. */
+function PasswordInput({ value, onChange, placeholder, autoFocus, autoComplete }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean; autoComplete?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)}
+        required minLength={6} placeholder={placeholder ?? '••••••'} autoFocus={autoFocus} autoComplete={autoComplete}
+        style={{ ...inputStyle, paddingRight: '46px' }}
+      />
+      <button
+        type="button" onClick={() => setShow((s) => !s)}
+        aria-label={show ? 'Hide password' : 'Show password'} title={show ? 'Hide password' : 'Show password'}
+        style={{
+          position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+          width: '36px', height: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--cream-muted)',
+        }}
+      >
+        <EyeIcon open={show} />
+      </button>
+    </div>
+  );
+}
+
+export default function Auth({ initialMode = 'signin' }: { initialMode?: Mode }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('signin');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -56,7 +99,15 @@ export default function Auth() {
     }
   }, []);
 
-  const switchMode = (m: Mode) => { setMode(m); setMessage(''); setIsError(false); };
+  // Dedicated /login and /register routes: keep the URL in step with the mode
+  // so browser back/forward and shared links behave like real pages.
+  const switchMode = (m: Mode) => {
+    setMode(m); setMessage(''); setIsError(false);
+    if (typeof window !== 'undefined') {
+      const target = m === 'signup' ? '/register' : '/login';
+      if (window.location.pathname !== target) window.history.replaceState(null, '', target);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +119,7 @@ export default function Auth() {
           throw new Error('Username must be 3–24 chars: letters, numbers, _ or -');
         }
         const mail = email.trim().toLowerCase();
+        if (password !== confirm) throw new Error('Passwords do not match.');
         const { data: taken } = await supabase
           .from('profiles').select('id').eq('username', uname).maybeSingle();
         if (taken) throw new Error('Username already taken.');
@@ -158,9 +210,12 @@ export default function Auth() {
         ] as React.CSSProperties[]).map((s, i) => <div key={i} style={{ position: 'absolute', width: 20, height: 20, ...s }} />)}
 
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ fontSize: '0.6rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', marginBottom: '10px' }}>
-            Guitar Companion
-          </div>
+          <Link href="/" style={{
+            display: 'inline-block', textDecoration: 'none',
+            fontSize: '0.6rem', letterSpacing: '0.5em', color: 'var(--gold-dim)', textTransform: 'uppercase', marginBottom: '10px',
+          }}>
+            ← Songcord
+          </Link>
           <h1 style={{
             fontFamily: 'var(--font-cormorant, Georgia, serif)',
             fontSize: '2rem', fontWeight: 500, letterSpacing: '0.08em',
@@ -177,7 +232,7 @@ export default function Auth() {
                 <label style={labelStyle}>Username</label>
                 <input
                   type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-                  autoFocus required minLength={3} pattern="[a-zA-Z0-9_-]+"
+                  autoFocus required minLength={3} pattern="[a-zA-Z0-9_-]+" autoComplete="username"
                   placeholder="your-username" style={inputStyle}
                 />
               </div>
@@ -196,7 +251,7 @@ export default function Auth() {
               <label style={labelStyle}>Email or Username</label>
               <input
                 type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)}
-                autoFocus required placeholder="you@example.com" style={inputStyle}
+                autoFocus required placeholder="you@example.com" autoComplete="username" style={inputStyle}
               />
             </div>
           )}
@@ -217,10 +272,16 @@ export default function Auth() {
           {mode !== 'forgot' && (
             <div>
               <label style={labelStyle}>Password</label>
-              <input
-                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                required minLength={6} placeholder="••••••" style={inputStyle}
-              />
+              <PasswordInput value={password} onChange={setPassword} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
+              {mode === 'signup' && (
+                <div style={{ marginTop: '18px' }}>
+                  <label style={labelStyle}>Confirm Password</label>
+                  <PasswordInput value={confirm} onChange={setConfirm} placeholder="Repeat password" autoComplete="new-password" />
+                  {confirm && confirm !== password && (
+                    <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--red-tuning)' }}>Passwords do not match.</p>
+                  )}
+                </div>
+              )}
               {mode === 'signin' && (
                 <button
                   type="button"

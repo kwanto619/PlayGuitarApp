@@ -47,7 +47,8 @@ export default function AuthRequired({ feature, children }: { feature: string; c
             Sign in or create a free account to use {feature.toLowerCase()}.
           </p>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/auth" style={primaryBtn}>Sign In / Sign Up</Link>
+            <Link href="/login" style={primaryBtn}>Sign In</Link>
+            <Link href="/register" style={primaryBtn}>Create Account</Link>
             <Link href="/" style={ghostBtn}>← Home</Link>
           </div>
         </div>

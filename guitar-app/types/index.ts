@@ -75,3 +75,8 @@ export interface Progression {
   chords: string[];
   bpm: number;
 }
+
+export interface RatingSummary {
+  avg: number;   // 1.0–5.0, one decimal
+  count: number;
+}

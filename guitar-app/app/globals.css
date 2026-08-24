@@ -188,11 +188,6 @@ button, input, textarea, select {
 }
 
 /* Lyrics pre: allow wrap on very long lines that have no chord alignment */
-@media (max-width: 640px) {
-  .lyrics-pre {
-    font-size: 0.78rem !important;
-  }
-}
 
 /* Song page top bar: keep every action reachable on narrow phones.
    The single fixed-height row overflows on mobile, so let the action
@@ -303,4 +298,39 @@ button, input, textarea, select {
     align-items: center;
     justify-content: center;
   }
+}
+
+/* ── Song page: sticky bottom toolbar (transpose / auto-scroll / text size) ── */
+.song-toolbar {
+  position: fixed; bottom: 0; right: 0; left: 240px; z-index: 100;
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: 10px 28px;
+  padding: 10px clamp(12px, 3vw, 32px);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--gold-border-mid);
+  box-shadow: 0 -8px 32px rgba(23,58,54,0.08);
+}
+.song-toolbar-group {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.song-toolbar-label {
+  font-family: var(--font-cormorant, Georgia, serif);
+  font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--gold-dim); margin-right: 4px;
+}
+@media (max-width: 900px) {
+  .song-toolbar { left: 0; }
+}
+@media (max-width: 640px) {
+  .song-toolbar { gap: 8px 14px; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .song-toolbar-label { display: none; }
+  .song-toolbar-scroll { order: -1; flex: 1 1 100%; justify-content: center; }
+}
+
+/* Lyrics text size is driven by the toolbar (A− / A+) via --lyrics-scale. */
+.lyrics-pre { font-size: calc(clamp(0.78rem, 1.4vw, 1rem) * var(--lyrics-scale, 1)); }
+@media (max-width: 640px) {
+  .lyrics-pre { font-size: calc(0.78rem * var(--lyrics-scale, 1)) !important; }
 }

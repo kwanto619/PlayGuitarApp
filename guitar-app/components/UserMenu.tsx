@@ -44,19 +44,32 @@ export default function UserMenu() {
   const [busy, setBusy] = useState(false);
 
   if (!user) {
+    const base: React.CSSProperties = {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+      padding: '9px 12px', flex: '1 1 0', minWidth: 0,
+      fontFamily: 'var(--font-cormorant, Georgia, serif)',
+      fontSize: '0.76rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+      textDecoration: 'none', whiteSpace: 'nowrap',
+    };
     return (
-      <Link href="/auth" style={{
-        display: 'inline-flex', alignItems: 'center', gap: '8px',
-        padding: '9px 14px',
-        fontFamily: 'var(--font-cormorant, Georgia, serif)',
-        fontSize: '0.8rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-        border: '1px solid var(--gold-border-mid)',
-        background: 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(13,148,136,0.03))',
-        color: 'var(--gold-bright)', textDecoration: 'none',
-      }}>
-        <UserIcon />
-        Sign In
-      </Link>
+      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+        <Link href="/login" style={{
+          ...base,
+          border: '1px solid var(--gold-border-mid)',
+          background: 'transparent', color: 'var(--cream-soft)',
+        }}>
+          <UserIcon size={15} />
+          Sign In
+        </Link>
+        <Link href="/register" style={{
+          ...base,
+          border: '1px solid var(--gold-border-mid)',
+          background: 'linear-gradient(135deg, rgba(13,148,136,0.16), rgba(13,148,136,0.04))',
+          color: 'var(--gold-bright)', fontWeight: 600,
+        }}>
+          Sign Up
+        </Link>
+      </div>
     );
   }
 

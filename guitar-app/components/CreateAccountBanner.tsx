@@ -71,7 +71,7 @@ export default function CreateAccountBanner() {
           display: 'flex', flexDirection: 'column', gap: '10px',
         }}>
           <Link
-            href="/auth?mode=signup"
+            href="/register"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             style={{
@@ -89,7 +89,7 @@ export default function CreateAccountBanner() {
           >
             Create Free Account →
           </Link>
-          <Link href="/auth" style={{
+          <Link href="/login" style={{
             textAlign: 'center', textDecoration: 'underline',
             color: 'var(--cream-muted)', fontSize: '0.82rem',
             fontFamily: 'var(--font-cormorant, Georgia, serif)', letterSpacing: '0.08em',

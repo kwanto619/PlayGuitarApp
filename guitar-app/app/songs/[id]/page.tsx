@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { use } from 'react';
 import Link from 'next/link';
 import { Song } from '@/types';
-import { loadSongById, updateSong, deleteSong } from '@/lib/storage';
+import { loadSongById, updateSong, deleteSong, bumpSongView } from '@/lib/storage';
 import ChordTooltip, { parseLyrics } from '@/components/ChordTooltip';
 import { transposeChords, getTransposeLabel } from '@/lib/transpose';
 import FavoriteButton from '@/components/FavoriteButton';
@@ -15,6 +15,9 @@ import { exportSongPdf } from '@/lib/pdf';
 import { useAuth } from '@/lib/auth';
 import { useDragScroll } from '@/lib/useDragScroll';
 import Flag from '@/components/Flag';
+import RatingStars from '@/components/RatingStars';
+import SongToolbar from '@/components/SongToolbar';
+import SongSuggestions from '@/components/SongSuggestions';
 
 // ── Shared style helpers ────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
@@ -95,95 +98,6 @@ function LangToggle({ value, onChange }: { value: 'greek' | 'english'; onChange:
   );
 }
 
-// ── Auto-scroll bar ─────────────────────────────────────────────────────────
-function AutoScrollBar({ hasLyrics }: { hasLyrics: boolean }) {
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed]     = useState(1.0);
-  const speedRef  = useRef(speed);
-  const accumRef  = useRef(0);   // fractional pixel accumulator
-  const rafRef    = useRef<number | null>(null);
-
-  // Keep ref in sync so the RAF loop always sees the latest speed
-  useEffect(() => { speedRef.current = speed; }, [speed]);
-
-  const scroll = useCallback(() => {
-    // Accumulate fractional pixels — avoids sub-pixel rounding to 0
-    accumRef.current += speedRef.current * 0.6;
-    const px = Math.floor(accumRef.current);
-    if (px > 0) {
-      window.scrollBy(0, px);
-      accumRef.current -= px;
-    }
-    rafRef.current = requestAnimationFrame(scroll);
-  }, []); // stable — reads speed via ref, never re-creates
-
-  useEffect(() => {
-    if (playing) {
-      accumRef.current = 0;
-      rafRef.current = requestAnimationFrame(scroll);
-    } else {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    }
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [playing, scroll]);
-
-  if (!hasLyrics) return null;
-
-  return (
-    <div style={{
-      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-      zIndex: 100,
-      background: 'rgba(255,255,255,0.96)',
-      border: '1px solid var(--gold)',
-      backdropFilter: 'blur(12px)',
-      padding: '14px 24px',
-      display: 'flex', alignItems: 'center', gap: '20px',
-      boxShadow: '0 10px 36px rgba(23,58,54,0.07), 0 0 0 1px rgba(0,196,180,0.18)',
-      whiteSpace: 'nowrap',
-    }}>
-      <span style={{
-        fontSize: '0.78rem', letterSpacing: '0.3em', textTransform: 'uppercase',
-        color: 'var(--gold-bright)', fontWeight: 600,
-        fontFamily: 'var(--font-cormorant, Georgia, serif)',
-      }}>
-        Auto-scroll
-      </span>
-
-      <button
-        onClick={() => setPlaying((p) => !p)}
-        style={{
-          width: '48px', height: '48px', borderRadius: '50%', cursor: 'pointer',
-          border: `1.5px solid ${playing ? 'var(--gold-bright)' : 'var(--gold)'}`,
-          background: playing ? 'rgba(0,196,180,0.28)' : 'rgba(0,196,180,0.1)',
-          color: playing ? 'var(--gold-bright)' : 'var(--cream)',
-          fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.15s',
-        }}
-      >
-        {playing ? '⏸' : '▶'}
-      </button>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button
-          onClick={() => setSpeed((s) => Math.max(0.2, +(s - 0.2).toFixed(1)))}
-          style={scrollNudge}
-        >−</button>
-        <span style={{
-          fontSize: '1.1rem', color: 'var(--cream)', minWidth: '52px', textAlign: 'center',
-          fontFamily: 'var(--font-cormorant, Georgia, serif)', fontWeight: 600,
-          letterSpacing: '0.04em',
-        }}>
-          {speed.toFixed(1)}×
-        </span>
-        <button
-          onClick={() => setSpeed((s) => Math.min(5, +(s + 0.2).toFixed(1)))}
-          style={scrollNudge}
-        >+</button>
-      </div>
-    </div>
-  );
-}
-
 const scrollNudge: React.CSSProperties = {
   minWidth: '48px', height: '48px', padding: '0 12px',
   cursor: 'pointer',
@@ -230,6 +144,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     youtubeUrl: '' as string,
   });
   const [lyricsFullscreen, setLyricsFullscreen] = useState(false);
+  const [lyricsScale, setLyricsScale] = useState(1);
   const lyricsDrag = useDragScroll<HTMLPreElement>();
   const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
   const lyricsBoxRef = useRef<HTMLDivElement>(null);
@@ -306,6 +221,14 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
     setShowVideoUrlInput(false);
     setVideoUrlDraft('');
   };
+
+  // Count the open (anonymous or member) — powers "Most popular".
+  const bumpedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (bumpedFor.current === id) return;
+    bumpedFor.current = id;
+    bumpSongView(id);
+  }, [id]);
 
   useEffect(() => {
     loadSongById(id).then((found) => {
@@ -395,7 +318,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
 
   // ── Full page view / edit ──────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)', paddingBottom: editMode ? '80px' : '140px' }}>
       {/* ── Top bar ── */}
       <div className="song-topbar" style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -530,31 +453,9 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                 </Link>
               </p>
 
-              {/* Star rating */}
-              <div style={{ display: 'flex', gap: '4px', marginBottom: '28px' }}>
-                {[1, 2, 3, 4, 5].map((star) => {
-                  const filled = star <= (song.rating ?? 0);
-                  return (
-                    <span
-                      key={star}
-                      onClick={async () => {
-                        const newRating = song.rating === star ? undefined : star;
-                        const updated = { ...song, rating: newRating };
-                        await updateSong(song.id, updated);
-                        setSong(updated);
-                      }}
-                      style={{
-                        fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1,
-                        color: filled ? '#f5a623' : 'var(--cream-muted)',
-                        opacity: filled ? 1 : 0.3,
-                        transition: 'color 0.12s, opacity 0.12s',
-                        userSelect: 'none',
-                      }}
-                    >
-                      ★
-                    </span>
-                  );
-                })}
+              {/* Community rating */}
+              <div style={{ marginBottom: '28px' }}>
+                <RatingStars songId={song.id} size="lg" />
               </div>
 
               {/* YouTube Player */}
@@ -672,25 +573,14 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                   {/* Transpose controls */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div style={labelStyle}>Chords</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button onClick={() => setTransposeOffset((o) => o - 1)} style={transBtn}>−</button>
+                    {transposeOffset !== 0 && (
                       <span style={{
-                        fontSize: '0.7rem', minWidth: '36px', textAlign: 'center',
-                        color: transposeOffset !== 0 ? 'var(--gold-bright)' : 'var(--cream-muted)',
-                        letterSpacing: '0.1em',
+                        fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase',
+                        color: 'var(--gold-bright)', fontFamily: 'var(--font-cormorant, Georgia, serif)',
                       }}>
-                        {transposeLabel}
+                        Transposed {transposeLabel}
                       </span>
-                      <button onClick={() => setTransposeOffset((o) => o + 1)} style={transBtn}>+</button>
-                      {transposeOffset !== 0 && (
-                        <button
-                          onClick={() => setTransposeOffset(0)}
-                          style={{ ...transBtn, fontSize: '0.6rem', padding: '0 6px', letterSpacing: '0.1em' }}
-                        >
-                          Reset
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -769,7 +659,7 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
                   <pre className="lyrics-pre" {...lyricsDrag} style={{
                     whiteSpace: 'pre',
                     fontFamily: 'var(--font-ibm-mono, monospace)',
-                    fontSize: 'clamp(0.78rem, 1.4vw, 1rem)',
+                    ['--lyrics-scale' as string]: lyricsScale,
                     color: 'var(--cream-soft)',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--gold-border)',
@@ -932,15 +822,25 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
-      {/* Comments */}
+      {/* Comments + "See also" */}
       {!editMode && (
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 clamp(20px, 4vw, 48px) 32px' }}>
           <Comments songId={song.id} />
+          <SongSuggestions song={song} />
         </div>
       )}
 
-      {/* Auto-scroll floating bar */}
-      {!editMode && <AutoScrollBar hasLyrics={!!song.lyrics} />}
+      {/* Sticky bottom toolbar: transpose · auto-scroll · text size */}
+      {!editMode && !lyricsFullscreen && (
+        <SongToolbar
+          hasLyrics={!!song.lyrics}
+          transpose={transposeOffset}
+          onTranspose={setTransposeOffset}
+          transposeLabel={transposeLabel}
+          scale={lyricsScale}
+          onScale={setLyricsScale}
+        />
+      )}
     </div>
   );
 }
@@ -956,16 +856,6 @@ const backBtnStyle: React.CSSProperties = {
   transition: 'all 0.15s',
   display: 'flex', alignItems: 'center', gap: '8px',
   minHeight: '44px', whiteSpace: 'nowrap' as const,
-};
-
-const transBtn: React.CSSProperties = {
-  minWidth: '40px', height: '40px', padding: '0 10px',
-  cursor: 'pointer',
-  border: '1px solid var(--gold-border-mid)',
-  background: 'rgba(0,196,180,0.08)', color: 'var(--gold-bright)',
-  fontSize: '1.1rem', fontWeight: 600,
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  transition: 'all 0.15s',
 };
 
 const videoBtnStyle: React.CSSProperties = {
