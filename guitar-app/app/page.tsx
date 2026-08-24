@@ -430,10 +430,10 @@ function Discovery() {
   if (popularSongs.length === 0 && popularArtists.length === 0) return null;
 
   return (
-    <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(24px, 4vw, 44px) clamp(16px, 3vw, 36px) 0', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(16px, 2.5vw, 28px) clamp(16px, 3vw, 36px) 0', boxSizing: 'border-box' }}>
       {/* Quick stats */}
       {stats && (
-        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 56px)', justifyContent: 'center', marginBottom: 'clamp(24px, 4vw, 40px)' }}>
+        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 56px)', justifyContent: 'center', marginBottom: 'clamp(18px, 3vw, 28px)' }}>
           <Stat n={stats.songs} label="Songs" href="/songs" />
           <Stat n={stats.artists} label="Artists" href="/artists" />
         </div>
@@ -515,10 +515,10 @@ function Stat({ n, label, href }: { n: number; label: string; href: string }) {
   return (
     <Link href={href} style={{ textDecoration: 'none', textAlign: 'center' }}>
       <div style={{
-        fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
+        fontFamily: 'var(--font-cormorant, Georgia, serif)', fontSize: 'clamp(1.3rem, 2.4vw, 1.7rem)',
         fontWeight: 700, color: 'var(--cream)', lineHeight: 1,
       }}>{pretty}</div>
-      <div style={{ fontSize: '0.66rem', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginTop: '6px' }}>{label}</div>
+      <div style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginTop: '4px' }}>{label}</div>
     </Link>
   );
 }
@@ -531,7 +531,7 @@ export default function Home() {
       <header style={{
         borderBottom: '1px solid var(--gold-border)',
         background: 'var(--bg-base)',
-        padding: 'clamp(20px, 3vw, 36px) clamp(16px, 3vw, 32px)',
+        padding: 'clamp(12px, 1.6vw, 18px) clamp(16px, 3vw, 32px)',
         textAlign: 'center',
         position: 'relative',
         overflow: 'hidden',
@@ -544,11 +544,11 @@ export default function Home() {
 
         <div style={{
           position: 'relative',
-          display: 'inline-flex', alignItems: 'center', gap: 'clamp(16px, 2.4vw, 26px)',
+          display: 'inline-flex', alignItems: 'center', gap: 'clamp(10px, 1.5vw, 14px)',
           justifyContent: 'center',
         }}>
           {/* Logo mark */}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="60" height="60">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="36" height="36">
             <defs>
               <filter id="logo-glow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
@@ -572,13 +572,13 @@ export default function Home() {
 
           <div style={{ textAlign: 'left' }}>
             <div style={{
-              fontSize: '0.7rem', letterSpacing: '0.45em', color: 'var(--gold-dim)',
-              textTransform: 'uppercase', marginBottom: '4px',
+              fontSize: '0.58rem', letterSpacing: '0.4em', color: 'var(--gold-dim)',
+              textTransform: 'uppercase', marginBottom: '2px',
             }}>
               Guitar Companion
             </div>
             <h1 style={{
-              fontSize: 'clamp(2.4rem, 5vw, 4rem)',
+              fontSize: 'clamp(1.5rem, 2.6vw, 2.1rem)',
               fontWeight: 700,
               letterSpacing: '-0.01em',
               margin: 0,
