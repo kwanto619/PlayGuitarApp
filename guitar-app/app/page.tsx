@@ -571,12 +571,6 @@ export default function Home() {
           </svg>
 
           <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontSize: '0.58rem', letterSpacing: '0.4em', color: 'var(--gold-dim)',
-              textTransform: 'uppercase', marginBottom: '2px',
-            }}>
-              Guitar Companion
-            </div>
             <h1 style={{
               fontSize: 'clamp(1.5rem, 2.6vw, 2.1rem)',
               fontWeight: 700,

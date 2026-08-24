@@ -138,7 +138,7 @@ export default function SongsLibrary() {
   const { summaryOf } = useRatings();
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   const [page,           setPage]           = useState(initialPage);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 20;
 
   // Load this user's view counts from the DB (cross-device) on mount.
   useEffect(() => { loadPlayCounts().then(setPlayCounts); }, []);
