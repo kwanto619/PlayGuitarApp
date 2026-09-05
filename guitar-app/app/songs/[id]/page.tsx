@@ -14,6 +14,7 @@ import Comments from '@/components/Comments';
 import { exportSongPdf } from '@/lib/pdf';
 import { useAuth } from '@/lib/auth';
 import { useDragScroll } from '@/lib/useDragScroll';
+import { useAutoScroll } from '@/lib/useAutoScroll';
 import Flag from '@/components/Flag';
 import RatingStars from '@/components/RatingStars';
 import SongToolbar from '@/components/SongToolbar';
@@ -149,6 +150,23 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
   const [fullscreenFontSize, setFullscreenFontSize] = useState(1.1);
   const lyricsBoxRef = useRef<HTMLDivElement>(null);
   const lyricsPreRef = useRef<HTMLPreElement>(null);
+
+  // Auto-scroll inside the fullscreen overlay (scrolls the overlay's own
+  // container, not the window — the body is scroll-locked while it's open).
+  const fsScroll = useAutoScroll(lyricsBoxRef);
+  const { setPlaying: setFsPlaying } = fsScroll;
+
+  // Stop when the overlay closes; Space toggles while it's open.
+  useEffect(() => {
+    if (!lyricsFullscreen) { setFsPlaying(false); return; }
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.code === 'Space') { e.preventDefault(); setFsPlaying((p) => !p); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lyricsFullscreen, setFsPlaying]);
 
   const fitLyricsToWidth = useCallback(() => {
     const box = lyricsBoxRef.current;
@@ -744,7 +762,29 @@ export default function SongPage({ params }: { params: Promise<{ id: string }> }
               </span>
             </div>
             <div className="fs-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-              <span className="fs-size-label" style={{ fontSize: '0.55rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)' }}>
+              {/* Auto-scroll */}
+              <button
+                onClick={() => setFsPlaying((p) => !p)}
+                aria-label={fsScroll.playing ? 'Pause auto-scroll' : 'Start auto-scroll'}
+                title="Auto-scroll (Space)"
+                style={{
+                  width: '48px', height: '48px', borderRadius: '50%', cursor: 'pointer', flex: '0 0 auto',
+                  border: `1.5px solid ${fsScroll.playing ? 'var(--gold-bright)' : 'var(--gold)'}`,
+                  background: fsScroll.playing ? 'var(--gold)' : 'rgba(13,148,136,0.1)',
+                  color: fsScroll.playing ? '#fff' : 'var(--gold-bright)',
+                  fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {fsScroll.playing ? '⏸' : '▶'}
+              </button>
+              <button onClick={fsScroll.slower} style={scrollNudge} aria-label="Slower">−</button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--cream-soft)', minWidth: '36px', textAlign: 'center' }}>
+                {fsScroll.speed.toFixed(1)}×
+              </span>
+              <button onClick={fsScroll.faster} style={scrollNudge} aria-label="Faster">+</button>
+
+              <span className="fs-size-label" style={{ fontSize: '0.55rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold-dim)', marginLeft: '8px' }}>
                 Size
               </span>
               <button

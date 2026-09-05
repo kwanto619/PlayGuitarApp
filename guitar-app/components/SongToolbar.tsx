@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
+import { useAutoScroll } from '@/lib/useAutoScroll';
 
 /**
  * Sticky bottom toolbar for the song page (tabsy-style): stays pinned while
@@ -20,36 +21,7 @@ export default function SongToolbar({
   scale: number;
   onScale: (next: number) => void;
 }) {
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed]     = useState(1.0);
-  const speedRef  = useRef(speed);
-  const accumRef  = useRef(0);   // fractional pixel accumulator
-  const rafRef    = useRef<number | null>(null);
-
-  useEffect(() => { speedRef.current = speed; }, [speed]);
-
-  const scroll = useCallback(() => {
-    accumRef.current += speedRef.current * 0.6;
-    const px = Math.floor(accumRef.current);
-    if (px > 0) {
-      window.scrollBy(0, px);
-      accumRef.current -= px;
-      // Stop automatically at the bottom of the page.
-      const atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
-      if (atEnd) { setPlaying(false); return; }
-    }
-    rafRef.current = requestAnimationFrame(scroll);
-  }, []);
-
-  useEffect(() => {
-    if (playing) {
-      accumRef.current = 0;
-      rafRef.current = requestAnimationFrame(scroll);
-    } else if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-    }
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [playing, scroll]);
+  const { playing, setPlaying, speed, faster, slower } = useAutoScroll();
 
   // Space toggles auto-scroll when focus isn't in a text field.
   useEffect(() => {
@@ -61,7 +33,7 @@ export default function SongToolbar({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hasLyrics]);
+  }, [hasLyrics, setPlaying]);
 
   return (
     <div className="song-toolbar" role="toolbar" aria-label="Song controls">
@@ -99,9 +71,9 @@ export default function SongToolbar({
           >
             {playing ? '⏸' : '▶'}
           </button>
-          <button onClick={() => setSpeed((s) => Math.max(0.2, +(s - 0.2).toFixed(1)))} style={nudge} aria-label="Slower">−</button>
+          <button onClick={slower} style={nudge} aria-label="Slower">−</button>
           <span style={value}>{speed.toFixed(1)}×</span>
-          <button onClick={() => setSpeed((s) => Math.min(5, +(s + 0.2).toFixed(1)))} style={nudge} aria-label="Faster">+</button>
+          <button onClick={faster} style={nudge} aria-label="Faster">+</button>
         </div>
       )}
 

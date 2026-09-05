@@ -11,7 +11,7 @@ async function currentUserId(): Promise<string | null> {
 
 type SongRow = {
   id: string; title: string; artist: string;
-  chords: string[]; lyrics: string | null; notes: string | null;
+  chords: string[]; lyrics?: string | null; notes: string | null;
   language: string; bpm: number | null; rating: number | null;
   youtube_video_id: string | null;
   user_id: string | null;
@@ -60,6 +60,20 @@ let songsCacheAt = 0;
 let songsInflight: Promise<Song[]> | null = null;
 const songsListeners = new Set<(songs: Song[]) => void>();
 
+// Full rows (with lyrics) already fetched this session, keyed by id.
+const songDetailCache = new Map<string, Song>();
+
+// The in-memory cache dies on a hard reload, so we also mirror the (lyrics-
+// free, therefore small) list into localStorage: the first page after a
+// reload paints instantly from it while a background refresh runs.
+const SONGS_LS_KEY = 'songcord.songs.v1';
+if (typeof window !== 'undefined') {
+  try {
+    const raw = window.localStorage.getItem(SONGS_LS_KEY);
+    if (raw) { songsCache = JSON.parse(raw) as Song[]; songsCacheAt = 0; } // stale → revalidates on first use
+  } catch { /* private mode / corrupted entry — start cold */ }
+}
+
 /** Subscribe to song-list updates (background revalidation, mutations). */
 export const subscribeSongs = (cb: (songs: Song[]) => void): (() => void) => {
   songsListeners.add(cb);
@@ -69,13 +83,25 @@ export const subscribeSongs = (cb: (songs: Song[]) => void): (() => void) => {
 function setSongsCache(songs: Song[]) {
   songsCache = songs;
   songsCacheAt = Date.now();
+  try { window.localStorage.setItem(SONGS_LS_KEY, JSON.stringify(songs)); } catch { /* quota/private mode */ }
   songsListeners.forEach((cb) => cb(songs));
 }
 
+// Everything the list views need — deliberately NOT lyrics, which are the
+// bulk of the table's payload; the song page fetches its own full row.
+const SONG_LIST_COLS = 'id, title, artist, chords, notes, language, bpm, rating, youtube_video_id, user_id, created_at';
+
 async function fetchSongs(): Promise<Song[]> {
-  const { data, error } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
-  if (error) { console.error('loadSongs:', error); return songsCache ?? []; }
-  const songs = await attachSongUsernames(data as SongRow[]);
+  // Profiles fetched in parallel (small table) instead of a serial second
+  // round trip that had to wait for the song rows to come back.
+  const [res, profRes] = await Promise.all([
+    supabase.from('songs').select(SONG_LIST_COLS).order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, username'),
+  ]);
+  if (res.error) { console.error('loadSongs:', res.error); return songsCache ?? []; }
+  const names = new Map<string, string>();
+  (profRes.data ?? []).forEach((p) => names.set(p.id, p.username));
+  const songs = (res.data as unknown as SongRow[]).map((r) => mapSong(r, names));
   setSongsCache(songs);
   return songs;
 }
@@ -106,6 +132,8 @@ export const refreshSongs = async (): Promise<Song[]> => {
 export const clearSongsCache = (): void => {
   songsCache = null;
   songsCacheAt = 0;
+  songDetailCache.clear();
+  try { window.localStorage.removeItem(SONGS_LS_KEY); } catch { /* unavailable */ }
 };
 
 export const loadAllPublicSongs = async (): Promise<Song[]> => {
@@ -115,19 +143,28 @@ export const loadAllPublicSongs = async (): Promise<Song[]> => {
 };
 
 export const loadSongsByUser = async (userId: string): Promise<Song[]> => {
-  const { data, error } = await supabase.from('songs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('songs').select(SONG_LIST_COLS).eq('user_id', userId).order('created_at', { ascending: false });
   if (error) { console.error('loadSongsByUser:', error); return []; }
-  return attachSongUsernames(data as SongRow[]);
+  return attachSongUsernames(data as unknown as SongRow[]);
 };
 
 export const loadSongById = async (id: string): Promise<Song | null> => {
-  // Served from the list cache when available (the common path: open a song
-  // straight from the library) — avoids two serial round trips.
-  const cached = songsCache?.find((s) => s.id === id);
+  // The list cache holds lyrics-free rows, so the song page always needs the
+  // full row — but only once per session (re-opens are instant).
+  const cached = songDetailCache.get(id);
   if (cached) return cached;
   const { data, error } = await supabase.from('songs').select('*').eq('id', id).maybeSingle();
   if (error || !data) return null;
-  const [song] = await attachSongUsernames([data as SongRow]);
+  // Reuse the uploader name from the list cache when we have it — skips a round trip.
+  const listName = songsCache?.find((s) => s.id === id)?.uploaderUsername;
+  let song: Song;
+  if (data.user_id && !listName) {
+    [song] = await attachSongUsernames([data as SongRow]);
+  } else {
+    song = mapSong(data as SongRow);
+    song.uploaderUsername = listName;
+  }
+  songDetailCache.set(id, song);
   return song;
 };
 
@@ -147,6 +184,7 @@ export const addSong = async (song: Omit<Song, 'id'>): Promise<Song[]> => {
 export const deleteSong = async (id: string): Promise<Song[]> => {
   const { error } = await supabase.from('songs').delete().eq('id', id);
   if (error) { console.error('deleteSong:', error); throw new Error('Failed to delete song'); }
+  songDetailCache.delete(id);
   return refreshSongs();
 };
 
@@ -160,6 +198,7 @@ export const updateSong = async (id: string, s: Partial<Song>): Promise<Song[]> 
     updated_at: new Date().toISOString(),
   }).eq('id', id);
   if (error) { console.error('updateSong:', error); throw new Error('Failed to update song'); }
+  songDetailCache.delete(id);
   return refreshSongs();
 };
 
@@ -233,7 +272,9 @@ export const rateSong = async (songId: string, stars: number | null): Promise<vo
 };
 
 export const exportSongs = async (): Promise<void> => {
-  const songs = await loadSongs();
+  // Full rows here — the list cache intentionally has no lyrics.
+  const { data } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
+  const songs = await attachSongUsernames((data ?? []) as SongRow[]);
   const dataStr = JSON.stringify(songs, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -457,9 +498,9 @@ export const loadFavoriteSongs = async (): Promise<Song[]> => {
   if (error) { console.error('loadFavoriteSongs:', error); return []; }
   const ids = (data ?? []).map((r) => r.song_id);
   if (ids.length === 0) return [];
-  const { data: songs } = await supabase.from('songs').select('*').in('id', ids);
+  const { data: songs } = await supabase.from('songs').select(SONG_LIST_COLS).in('id', ids);
   const order = new Map(ids.map((id, i) => [id, i]));
-  const sorted = (songs as SongRow[] | null ?? []).sort(
+  const sorted = (songs as unknown as SongRow[] | null ?? []).sort(
     (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
   );
   return attachSongUsernames(sorted);
@@ -545,12 +586,12 @@ export const loadFeed = async (): Promise<Song[]> => {
     rows.map(async (f) => {
       const { data } = await supabase
         .from('songs')
-        .select('*')
+        .select(SONG_LIST_COLS)
         .eq('user_id', f.following_id)
         .gt('created_at', f.created_at)
         .order('created_at', { ascending: false })
         .limit(60);
-      return (data ?? []) as SongRow[];
+      return (data ?? []) as unknown as SongRow[];
     })
   );
   const merged = perUser.flat()
