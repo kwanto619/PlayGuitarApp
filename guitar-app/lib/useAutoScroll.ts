@@ -45,8 +45,8 @@ export function useAutoScroll(target?: React.RefObject<HTMLElement | null>) {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [playing, step]);
 
-  const faster = useCallback(() => setSpeed((s) => Math.min(5, +(s + 0.2).toFixed(1))), []);
-  const slower = useCallback(() => setSpeed((s) => Math.max(0.2, +(s - 0.2).toFixed(1))), []);
+  const faster = useCallback(() => setSpeed((s) => Math.min(5, +(s + 0.1).toFixed(1))), []);
+  const slower = useCallback(() => setSpeed((s) => Math.max(0.1, +(s - 0.1).toFixed(1))), []);
 
   return { playing, setPlaying, speed, faster, slower };
 }
