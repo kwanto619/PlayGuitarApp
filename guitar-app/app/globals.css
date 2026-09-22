@@ -214,17 +214,26 @@ button, input, textarea, select {
   }
 }
 
-/* Fullscreen lyrics overlay header: on phones the title/artist pushed the
-   zoom + Close controls off the right edge. Drop the artist and "Size"
-   label, tighten spacing, and let the title truncate so the controls
-   (pinned via flex-shrink:0) always stay fully visible. */
+/* Fullscreen lyrics overlay header on phones: with the auto-scroll controls
+   added, one row can't hold everything and the Close button fell off the
+   right edge. Hide the title/artist (you know what you opened), give the
+   controls the full width, and let them wrap onto a second row so every
+   button — Close included — stays on screen. */
 @media (max-width: 640px) {
-  .fs-artist,
+  .fs-titlewrap,
   .fs-size-label {
     display: none;
   }
   .fs-controls {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    width: 100%;
     gap: 6px !important;
+    row-gap: 8px !important;
+  }
+  .fs-controls button {
+    min-width: 42px !important;
+    height: 42px !important;
   }
 }
 
