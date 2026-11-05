@@ -58,10 +58,12 @@ function VintageInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 function VintageTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
+      // Lenis hijacks the wheel on desktop; without this the textarea can't scroll.
+      data-lenis-prevent
       {...props}
       style={{
         ...inputStyle,
-        minHeight: '260px',
+        minHeight: '420px',
         resize: 'vertical',
         fontFamily: 'var(--font-ibm-mono, monospace)',
         fontSize: '0.9rem',
